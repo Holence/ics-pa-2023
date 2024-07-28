@@ -55,7 +55,7 @@ static int cmd_q(char *args) {
 static int cmd_help(char *args);
 
 static int cmd_si(char *args);
-// static int cmd_info(char *args);
+static int cmd_info(char *args);
 // static int cmd_x(char *args);
 // static int cmd_p(char *args);
 // static int cmd_w(char *args);
@@ -72,7 +72,7 @@ static struct {
 
     /* Add more commands */
     {"si", "Step by machine instructions", cmd_si},
-    // {"info", "Show info", cmd_info},
+    {"info", "Show info", cmd_info},
     // {"x", "Examine memory at address expr", cmd_x},
     // {"p", "Show value of expr", cmd_p},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
@@ -114,6 +114,25 @@ static int cmd_si(char *args) {
     N = atoi(arg); // If the input string is not a valid string's number, it returns 0.
   }
   cpu_exec(N);
+  return 0;
+}
+
+static int cmd_info(char *args) {
+  /* extract the first argument */
+  char *arg = strtok(NULL, " ");
+
+  if (arg == NULL) {
+    /* no argument given */
+    printf("usage: info r / info w\n");
+  } else {
+    if (strcmp(arg, "r") == 0) {
+      isa_reg_display();
+    } else if (strcmp(arg, "w") == 0) {
+      printf("info watchpoint\n");
+    } else {
+      printf("usage: info r / info w\n");
+    }
+  }
   return 0;
 }
 

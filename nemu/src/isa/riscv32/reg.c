@@ -23,6 +23,10 @@ const char *regs[] = {
     "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
 
 void isa_reg_display() {
+  int data_length = sizeof(word_t) * 2;
+  for (int i = 0; i < ARRLEN(regs); i++) {
+    printf("%-8s  0x%-*x  %d\n", regs[i], data_length, gpr(i), gpr(i));
+  }
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
