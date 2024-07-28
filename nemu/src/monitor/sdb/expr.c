@@ -24,7 +24,8 @@ enum {
   TK_NOTYPE = 256,
   TK_EQ,
 
-  /* TODO: Add more token types */
+  /* Add more token types */
+  TK_NUM,
 
 };
 
@@ -33,13 +34,22 @@ static struct rule {
   int token_type;
 } rules[] = {
 
-    /* TODO: Add more rules.
+    /* Add more rules.
      * Pay attention to the precedence level of different rules.
      */
 
     {" +", TK_NOTYPE}, // spaces
-    {"\\+", '+'},      // plus
     {"==", TK_EQ},     // equal
+
+    {"\\+", '+'}, // plus
+    {"-", '-'},   // minus
+    {"\\*", '*'}, // mul
+    {"/", '/'},   // div
+
+    {"[0-9]+", TK_NUM}, // number
+    {"\\(", '('},       // (
+    {"\\)", ')'},       // )
+
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -54,6 +64,7 @@ void init_regex() {
   char error_msg[128];
   int ret;
 
+  // compile all regex rules
   for (i = 0; i < NR_REGEX; i++) {
     ret = regcomp(&re[i], rules[i].regex, REG_EXTENDED);
     if (ret != 0) {
@@ -90,14 +101,29 @@ static bool make_token(char *e) {
 
         position += substr_len;
 
-        /* TODO: Now a new token is recognized with rules[i]. Add codes
+        /* Now a new token is recognized with rules[i]. Add codes
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
 
         switch (rules[i].token_type) {
+        case TK_NOTYPE:
+          break;
+        case TK_NUM: {
+          if (substr_len < 32) {
+            strcpy(tokens[nr_token].str, substr_start);
+          } else {
+            panic("token not less than 32 char: %s", substr_start);
+          }
+        }
+        case TK_EQ:
+        case '+':
+        case '-':
+        case '*':
+        case '/':
         default:
-          TODO();
+          tokens[nr_token].type = rules[i].token_type;
+          nr_token++;
         }
 
         break;
@@ -113,14 +139,67 @@ static bool make_token(char *e) {
   return true;
 }
 
+static bool bad_expression;
+
+bool check_parentheses(int p, int q) {
+  // TODO
+  return true;
+}
+
+word_t eval(int p, int q) {
+  if (p > q) {
+    /* Bad expression
+      "3 + " will call eval(0, 0) and eval (2, 1)
+     */
+    bad_expression = true;
+    return 0;
+  } else if (p == q) {
+    /* Single token.
+     * For now this token should be a number.
+     * Return the value of the number.
+     */
+    return atoi(tokens[q].str);
+  } else if (check_parentheses(p, q) == true) {
+    /* The expression is surrounded by a matched pair of parentheses.
+     * If that is the case, just throw away the parentheses.
+     */
+    return eval(p + 1, q - 1);
+  } else {
+    // TODO
+    // op = the position of 主运算符 in the token expression;
+    int op = 0;
+
+    word_t val1 = eval(p, op - 1);
+    if (bad_expression)
+      return 0;
+
+    word_t val2 = eval(op + 1, q);
+    if (bad_expression)
+      return 0;
+
+    // switch (op_type) {
+    // case '+':
+    //   return val1 + val2;
+    // case '-': /* ... */
+    // case '*': /* ... */
+    // case '/': /* ... */
+    // default:
+    //   assert(0);
+    // }
+  }
+}
+
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
     return 0;
   }
 
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
-
-  return 0;
+  /* Insert codes to evaluate the expression. */
+  bad_expression = false;
+  word_t result = eval(0, nr_token);
+  if (bad_expression) {
+    *success = false;
+  }
+  return result;
 }

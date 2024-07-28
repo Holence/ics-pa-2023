@@ -58,7 +58,7 @@ static int cmd_help(char *args);
 static int cmd_si(char *args);
 static int cmd_info(char *args);
 static int cmd_x(char *args);
-// static int cmd_p(char *args);
+static int cmd_p(char *args);
 // static int cmd_w(char *args);
 // static int cmd_d(char *args);
 
@@ -75,7 +75,7 @@ static struct {
     {"si", "Step by machine instructions: si [N], step N instructions, N default to 1", cmd_si},
     {"info", "Show info: `info r` to print registers, `info w` to print watchpoints", cmd_info},
     {"x", "Examine memory at address expr: `x [N] EXPR`, print N*4 bytes after M[EXPR], N default to 1", cmd_x},
-    // {"p", "Show value of expr", cmd_p},
+    {"p", "Show value of expr", cmd_p},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
     // {"d", "Delete watchpoint", cmd_d},
 
@@ -171,6 +171,29 @@ static int cmd_x(char *args) {
     }
     if (i % 4 != 0) {
       printf("\n");
+    }
+  }
+  return 0;
+}
+
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    /* no argument given */
+    printf("usage: p EXPR\n");
+  } else {
+    // strip space
+    while (args[0] == ' ')
+      args++;
+    if (args[0] == '\0') {
+      printf("usage: p EXPR\n");
+    } else {
+      bool success = true;
+      word_t result = expr(args, &success);
+      if (success) {
+        printf("%d\n", result);
+      } else {
+        printf("Invalid EXPR\n");
+      }
     }
   }
   return 0;
