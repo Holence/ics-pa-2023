@@ -16,6 +16,7 @@
 #include "sdb.h"
 #include <cpu/cpu.h>
 #include <isa.h>
+#include <memory/vaddr.h>
 #include <readline/history.h>
 #include <readline/readline.h>
 
@@ -56,7 +57,7 @@ static int cmd_help(char *args);
 
 static int cmd_si(char *args);
 static int cmd_info(char *args);
-// static int cmd_x(char *args);
+static int cmd_x(char *args);
 // static int cmd_p(char *args);
 // static int cmd_w(char *args);
 // static int cmd_d(char *args);
@@ -71,9 +72,9 @@ static struct {
     {"q", "Exit NEMU", cmd_q},
 
     /* Add more commands */
-    {"si", "Step by machine instructions", cmd_si},
-    {"info", "Show info", cmd_info},
-    // {"x", "Examine memory at address expr", cmd_x},
+    {"si", "Step by machine instructions: si [N], step N instructions, N default to 1", cmd_si},
+    {"info", "Show info: `info r` to print registers, `info w` to print watchpoints", cmd_info},
+    {"x", "Examine memory at address expr: `x [N] EXPR`, print N*4 bytes after M[EXPR], N default to 1", cmd_x},
     // {"p", "Show value of expr", cmd_p},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
     // {"d", "Delete watchpoint", cmd_d},
@@ -131,6 +132,45 @@ static int cmd_info(char *args) {
       printf("info watchpoint\n");
     } else {
       printf("usage: info r / info w\n");
+    }
+  }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  /* extract the first argument */
+  char *first = strtok(NULL, " ");
+  char *second = strtok(NULL, " ");
+
+  if (first == NULL) {
+    /* no argument given */
+    printf("usage: x [N] EXPR\n");
+  } else {
+
+    // x EXPR
+    int len = 1;
+    // x N EXPR
+    if (second != NULL) {
+      len = atoi(first);
+    }
+
+    vaddr_t base_address = 0x80000000;
+    // print format
+    // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
+    // 0x80000010: 0x00000005 0x00000006
+    int i;
+    for (i = 0; i < len; i++) {
+      if (i % 4 == 0) {
+        printf("0x%8x: ", base_address);
+      }
+      printf("0x%08x ", vaddr_read(base_address, 4));
+      base_address += 4;
+      if (i % 4 == 3) {
+        printf("\n");
+      }
+    }
+    if (i % 4 != 0) {
+      printf("\n");
     }
   }
   return 0;

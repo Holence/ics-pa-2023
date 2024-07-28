@@ -48,6 +48,8 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
+  // physical memory area [0x80000000, 0x87ffffff]
+  // this "physical" address means the simulated physical memory address inside nemu, not the physical address of GNU/Linux
 }
 
 word_t paddr_read(paddr_t addr, int len) {
