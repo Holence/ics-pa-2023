@@ -43,15 +43,23 @@ static char *rl_gets() {
 }
 
 static int cmd_c(char *args) {
-  cpu_exec(-1);
+  cpu_exec(-1); // -1 in uint64_t is 18446744073709551615
   return 0;
 }
 
 static int cmd_q(char *args) {
+  nemu_state.state = NEMU_QUIT; // PA1. RTFSC, 优美地退出
   return -1;
 }
 
 static int cmd_help(char *args);
+
+static int cmd_si(char *args);
+// static int cmd_info(char *args);
+// static int cmd_x(char *args);
+// static int cmd_p(char *args);
+// static int cmd_w(char *args);
+// static int cmd_d(char *args);
 
 static struct {
   const char *name;
@@ -62,7 +70,13 @@ static struct {
     {"c", "Continue the execution of the program", cmd_c},
     {"q", "Exit NEMU", cmd_q},
 
-    /* TODO: Add more commands */
+    /* Add more commands */
+    {"si", "Step by machine instructions", cmd_si},
+    // {"info", "Show info", cmd_info},
+    // {"x", "Examine memory at address expr", cmd_x},
+    // {"p", "Show value of expr", cmd_p},
+    // {"w", "Set a watchpoint for expression expr", cmd_w},
+    // {"d", "Delete watchpoint", cmd_d},
 
 };
 
@@ -71,14 +85,17 @@ static struct {
 static int cmd_help(char *args) {
   /* extract the first argument */
   char *arg = strtok(NULL, " ");
+  // NULL means to continue tokenizing the string you passed in previous call to strtok()
   int i;
 
   if (arg == NULL) {
     /* no argument given */
+    // print all cmd info
     for (i = 0; i < NR_CMD; i++) {
       printf("%s - %s\n", cmd_table[i].name, cmd_table[i].description);
     }
   } else {
+    // print the named one
     for (i = 0; i < NR_CMD; i++) {
       if (strcmp(arg, cmd_table[i].name) == 0) {
         printf("%s - %s\n", cmd_table[i].name, cmd_table[i].description);
@@ -87,6 +104,16 @@ static int cmd_help(char *args) {
     }
     printf("Unknown command '%s'\n", arg);
   }
+  return 0;
+}
+
+static int cmd_si(char *args) {
+  char *arg = strtok(NULL, " ");
+  int N = 1;
+  if (arg != NULL) {
+    N = atoi(arg); // If the input string is not a valid string's number, it returns 0.
+  }
+  cpu_exec(N);
   return 0;
 }
 
@@ -100,6 +127,7 @@ void sdb_mainloop() {
     return;
   }
 
+  // main loop
   for (char *str; (str = rl_gets()) != NULL;) {
     char *str_end = str + strlen(str);
 
@@ -111,6 +139,7 @@ void sdb_mainloop() {
 
     /* treat the remaining string as the arguments,
      * which may need further parsing
+     * args is the starting address of "args"
      */
     char *args = cmd + strlen(cmd) + 1;
     if (args >= str_end) {
@@ -126,7 +155,7 @@ void sdb_mainloop() {
     for (i = 0; i < NR_CMD; i++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
         if (cmd_table[i].handler(args) < 0) {
-          return;
+          return; // exit main loop
         }
         break;
       }
@@ -136,6 +165,7 @@ void sdb_mainloop() {
       printf("Unknown command '%s'\n", cmd);
     }
   }
+  // main loop
 }
 
 void init_sdb() {
