@@ -24,6 +24,12 @@ enum {
   TK_NOTYPE = 256,
   TK_EQ,
 
+  // 这些数字会在计算时用于优先级判断
+  TK_ADD = 1,
+  TK_SUB = 2,
+  TK_MUL = 3,
+  TK_DIV = 4,
+
   /* Add more token types */
   TK_NUM,
 
@@ -41,10 +47,10 @@ static struct rule {
     {" +", TK_NOTYPE}, // spaces
     {"==", TK_EQ},     // equal
 
-    {"\\+", '+'}, // plus
-    {"-", '-'},   // minus
-    {"\\*", '*'}, // mul
-    {"/", '/'},   // div
+    {"\\+", TK_ADD},
+    {"-", TK_SUB},
+    {"\\*", TK_MUL},
+    {"/", TK_DIV},
 
     {"[0-9]+", TK_NUM}, // number
     {"\\(", '('},       // (
@@ -117,10 +123,10 @@ static bool make_token(char *e) {
           }
         }
         case TK_EQ:
-        case '+':
-        case '-':
-        case '*':
-        case '/':
+        case TK_ADD:
+        case TK_SUB:
+        case TK_MUL:
+        case TK_DIV:
         default:
           tokens[nr_token].type = rules[i].token_type;
           nr_token++;
@@ -141,15 +147,115 @@ static bool make_token(char *e) {
 
 static bool bad_expression;
 
-bool check_parentheses(int p, int q) {
-  // TODO
+bool is_full_parentheses(int p, int q) {
+  if (tokens[p].type == '(' && tokens[q].type == ')') {
+    bool a_pair_complete = false;
+    int count_parentheses = 0;
+    for (int i = p; i <= q; i++) {
+
+      if (tokens[i].type == '(') {
+        if (a_pair_complete) {
+          // ( ) ( )
+          return false;
+        }
+        count_parentheses++;
+      }
+
+      if (tokens[i].type == ')') {
+        count_parentheses--;
+        if (count_parentheses == 0) {
+          a_pair_complete = true;
+        }
+      }
+
+      if (count_parentheses < 0) {
+        // ( ) )
+        return false;
+      }
+    }
+
+    if (count_parentheses > 0) {
+      // ( ( )
+      return false;
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool has_valid_parentheses(int p, int q) {
+  int count_parentheses = 0;
+  for (int i = p; i <= q; i++) {
+
+    if (tokens[i].type == '(') {
+      count_parentheses++;
+    }
+
+    if (tokens[i].type == ')') {
+      count_parentheses--;
+    }
+
+    if (count_parentheses < 0) {
+      // ( ) )
+      return false;
+    }
+  }
+
+  if (count_parentheses > 0) {
+    // ( ( )
+    return false;
+  }
   return true;
 }
 
+int get_main_op_index(int p, int q) {
+  // 非运算符的token不是主运算符.
+  // 出现在一对括号中的token不是主运算符. 注意到这里不会出现有括号包围整个表达式的情况, 因为这种情况已经在check_parentheses()相应的if块中被处理了.
+  // 主运算符的优先级在表达式中是最低的. 这是因为主运算符是最后一步才进行的运算符.
+  // 当有多个运算符的优先级都是最低时, 根据结合性, 最后被结合的运算符才是主运算符. 一个例子是1 + 2 + 3, 它的主运算符应该是右边的+.
+
+  int op_index = p + 1; // 直接从第二个开始, 为了让 "-1 * 2" 的找到 * 而不是 -
+  int min_priority = TK_DIV;
+  bool found = false;                             // -(1+2) 这种算是没有main op
+  int inside_parentheses = tokens[p].type == '('; // -( (1) + 1 ) 可能有多重嵌套，所以得用count来数
+  for (int i = p + 1; i <= q; i++) {
+    int token_type = tokens[i].type;
+    if (token_type != TK_NUM) {
+      if (token_type == '(') {
+        inside_parentheses++;
+        continue;
+      } else if (token_type == ')') {
+        inside_parentheses--;
+        continue;
+      }
+
+      if (inside_parentheses == 0) {
+        if (token_type <= min_priority) {
+          // 不是数字，不在括号内，且优先级最低，且靠最右的
+          found = true;
+          // 加减同级
+          if (token_type <= TK_SUB) {
+            min_priority = TK_SUB;
+          }
+          op_index = i;
+        }
+      }
+    }
+  }
+  if (found) {
+    return op_index;
+  } else {
+    return -1;
+  }
+}
+
 word_t eval(int p, int q) {
+  // if (q < 0 || p >= nr_token) {
   if (p > q) {
     /* Bad expression
       "3 + " will call eval(0, 0) and eval (2, 1)
+      " + 3" will call eval(0, -1) and eval (1, 1)
      */
     bad_expression = true;
     return 0;
@@ -158,34 +264,70 @@ word_t eval(int p, int q) {
      * For now this token should be a number.
      * Return the value of the number.
      */
-    return atoi(tokens[q].str);
-  } else if (check_parentheses(p, q) == true) {
+    if (tokens[p].type == TK_NUM) {
+
+      return atoi(tokens[p].str);
+    } else {
+      bad_expression = true;
+      return 0;
+    }
+  } else if (is_full_parentheses(p, q)) {
     /* The expression is surrounded by a matched pair of parentheses.
      * If that is the case, just throw away the parentheses.
      */
     return eval(p + 1, q - 1);
   } else {
-    // TODO
-    // op = the position of 主运算符 in the token expression;
-    int op = 0;
+    // is_full_parentheses() == false, invalid expression
+    // (4 + 3)) * ((2 - 1)
+    if (!has_valid_parentheses(p, q)) {
+      bad_expression = true;
+      return 0;
+    }
 
-    word_t val1 = eval(p, op - 1);
+    // is_full_parentheses() == false, but has_valid_parentheses() == true
+    // (4 + 3) * (2 - 1)
+    // 4 + 3 * 1
+    // -4 + 3 * 1
+    // -(4 + 3 * 1)
+
+    int op_index = get_main_op_index(p, q);
+
+    // not have main op
+    // starting with +/-
+    // +NUMBER / +(1)
+    // -(-(+1))
+    if (op_index == -1) {
+      if (tokens[p].type == TK_ADD) {
+        return eval(p + 1, q);
+      } else if (tokens[p].type == TK_SUB) {
+        return -eval(p + 1, q);
+      }
+      // if (q - p == 1 || tokens[p + 1].type == '(') {
+      // }
+    }
+
+    // have main op
+    // -(-1+1) + 1
+    word_t val1 = eval(p, op_index - 1);
     if (bad_expression)
       return 0;
 
-    word_t val2 = eval(op + 1, q);
+    word_t val2 = eval(op_index + 1, q);
     if (bad_expression)
       return 0;
 
-    // switch (op_type) {
-    // case '+':
-    //   return val1 + val2;
-    // case '-': /* ... */
-    // case '*': /* ... */
-    // case '/': /* ... */
-    // default:
-    //   assert(0);
-    // }
+    switch (tokens[op_index].type) {
+    case TK_ADD:
+      return val1 + val2;
+    case TK_SUB:
+      return val1 - val2;
+    case TK_MUL:
+      return val1 * val2;
+    case TK_DIV:
+      return val1 / val2;
+    default:
+      panic("Not support op: %d", tokens[op_index].type);
+    }
   }
 }
 
@@ -197,7 +339,7 @@ word_t expr(char *e, bool *success) {
 
   /* Insert codes to evaluate the expression. */
   bad_expression = false;
-  word_t result = eval(0, nr_token);
+  word_t result = eval(0, nr_token - 1);
   if (bad_expression) {
     *success = false;
   }
