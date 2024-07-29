@@ -102,8 +102,7 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s", i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -301,18 +300,23 @@ word_t eval(int p, int q) {
         return eval(p + 1, q);
       } else if (tokens[p].type == TK_SUB) {
         return -eval(p + 1, q);
+      } else {
+        bad_expression = true;
+        return 0;
       }
-      // if (q - p == 1 || tokens[p + 1].type == '(') {
-      // }
     }
 
     // have main op
     // -(-1+1) + 1
-    word_t val1 = eval(p, op_index - 1);
+    /*
+     * 为了正确地计算负数的乘法除法，这里 val1, val2 先用int表示，最后返回到expr()时会被解释为word_t
+     * -6 / 4 = -1 ，而不是 4294967290 / 4 = 1073741822
+     */
+    int val1 = eval(p, op_index - 1);
     if (bad_expression)
       return 0;
 
-    word_t val2 = eval(op_index + 1, q);
+    int val2 = eval(op_index + 1, q);
     if (bad_expression)
       return 0;
 

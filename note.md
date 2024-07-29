@@ -42,6 +42,75 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 }
 ```
 
+# PA1
+
+制作简易的调试器（因为硬件都是模拟出来的，打印寄存器、内存也就是打印出数组中的值）。读代码，找到需要调用的函数或需要访问的static变量（应该是需要手动添加include的）。
+
+## 表达式求值
+
+其中的`p EXPR`指令需要自己写表达式求值的工具。随机生成测试，是先随机出一个表达式，然后写入一个`temp.c`的临时文件，编译，开进程运行，`./gen-expr 1000 > input`生成多组结果和表达式
+
+> 过滤除以0的case，可以用signal，但遇到0乘以时`(1 / 0) * 0`，运行却没有异常，这种实在没法探测
+>
+> 完全可能是很复杂的形态`(6-2*3)*(1 - 2/(1-1))`，到nemu里运行是先计算出`1-1`为0，再`2/0`，肯定会报错的。这种只能运行报错后手动删掉这种case了
+
+最后修改nemu的main函数，读文件，调用`expr()`，对比结果
+
+```c
+// nemu-main.c (only for test expr)
+#include <common.h>
+
+void init_monitor(int, char *[]);
+void am_init_monitor();
+void engine_start();
+int is_exit_status_bad();
+word_t expr(char *e, bool *success);
+
+int main(int argc, char *argv[]) {
+  /* Initialize the monitor. */
+#ifdef CONFIG_TARGET_AM
+  am_init_monitor();
+#else
+  init_monitor(argc, argv);
+#endif
+
+  /* Start engine. */
+  // engine_start();
+
+  FILE *file = fopen("/home/hc/ics-pa-2023/nemu/tools/gen-expr/input", "r");
+  if (file == NULL) {
+    perror("Error opening file");
+    return 1;
+  }
+
+  word_t reference;
+  char expression[32];
+
+  int total = 0;
+  int correct = 0;
+  bool success = true;
+  while (fscanf(file, "%u %[^\n]", &reference, expression) == 2) {
+    printf(ANSI_FMT("%s = %u\n", ANSI_FG_BLACK), expression, reference);
+    total++;
+    word_t result = expr(expression, &success);
+    if (result != reference) {
+      printf(ANSI_FMT("%u - Not Match\n", ANSI_FG_RED), result);
+      getc(stdin);
+    } else {
+      correct++;
+      printf(ANSI_FMT("Match\n", ANSI_FG_GREEN));
+    }
+  }
+  fclose(file);
+
+  printf(ANSI_FMT("Total Test: %d\nCorrect: %d\n", ANSI_FG_MAGENTA), total, correct);
+
+  return is_exit_status_bad();
+}
+```
+
+非常尴尬的是，我做test的用时 比 写表达式求值逻辑的用时 还长😅
+
 # 二周目
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
