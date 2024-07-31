@@ -23,21 +23,26 @@
 enum {
 
   // 这些数字会在计算时用于优先级判断
+  TK_L_Parenthese = 0,
+  TK_R_Parenthese = 1,
+
   // Unary / dereference
-  TK_POS = 1,   // +1
-  TK_NEG = 2,   // -1
-  TK_DEREF = 3, // *var
+  TK_POS = 10,   // +1
+  TK_NEG = 11,   // -1
+  TK_DEREF = 12, // *var
 
   // Binary
-  TK_MUL = 11, // 1 * 1
-  TK_DIV = 12,
-  TK_ADD = 13, // 1 + 1
-  TK_SUB = 14,
+  TK_MUL = 20, // 1 * 1
+  TK_DIV = 21, // 1 / 1
 
-  TK_NUM = 254,
-  TK_EQ = 255,
-  TK_NOTYPE = 256,
+  TK_ADD = 30, // 1 + 1
+  TK_SUB = 31, // 1 - 1
 
+  TK_EQ = 40,  // 1 == 1
+  TK_AND = 50, // 1 && 1
+
+  TK_NUM = 255,    // number
+  TK_NOTYPE = 256, // space
 };
 
 static struct rule {
@@ -49,18 +54,19 @@ static struct rule {
      * Pay attention to the precedence level of different rules.
      */
 
-    {" +", TK_NOTYPE}, // spaces
-    {"==", TK_EQ},     // equal
+    {" +", TK_NOTYPE},        // spaces
+    {"\\(", TK_L_Parenthese}, // (
+    {"\\)", TK_R_Parenthese}, // )
 
     {"\\+", TK_ADD},
     {"-", TK_SUB},
     {"\\*", TK_MUL},
     {"/", TK_DIV},
 
-    {"[0-9]+", TK_NUM}, // number
-    {"\\(", '('},       // (
-    {"\\)", ')'},       // )
+    {"==", TK_EQ},  // equal
+    {"&&", TK_AND}, // and
 
+    {"[0-9]+", TK_NUM}, // number
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -127,16 +133,10 @@ static bool make_token(char *e) {
             panic("token not less than 32 char: %s", substr_start);
           }
         }
-        case TK_EQ:
-        case TK_ADD:
-        case TK_SUB:
-        case TK_MUL:
-        case TK_DIV:
         default:
           tokens[nr_token].type = rules[i].token_type;
           nr_token++;
         }
-
         break;
       }
     }
@@ -153,12 +153,12 @@ static bool make_token(char *e) {
 static bool bad_expression;
 
 bool is_full_parentheses(int p, int q) {
-  if (tokens[p].type == '(' && tokens[q].type == ')') {
+  if (tokens[p].type == TK_L_Parenthese && tokens[q].type == TK_R_Parenthese) {
     bool a_pair_complete = false;
     int count_parentheses = 0;
     for (int i = p; i <= q; i++) {
 
-      if (tokens[i].type == '(') {
+      if (tokens[i].type == TK_L_Parenthese) {
         if (a_pair_complete) {
           // ( ) ( )
           return false;
@@ -166,7 +166,7 @@ bool is_full_parentheses(int p, int q) {
         count_parentheses++;
       }
 
-      if (tokens[i].type == ')') {
+      if (tokens[i].type == TK_R_Parenthese) {
         count_parentheses--;
         if (count_parentheses == 0) {
           a_pair_complete = true;
@@ -193,11 +193,11 @@ bool has_valid_parentheses(int p, int q) {
   int count_parentheses = 0;
   for (int i = p; i <= q; i++) {
 
-    if (tokens[i].type == '(') {
+    if (tokens[i].type == TK_L_Parenthese) {
       count_parentheses++;
     }
 
-    if (tokens[i].type == ')') {
+    if (tokens[i].type == TK_R_Parenthese) {
       count_parentheses--;
     }
 
@@ -230,20 +230,19 @@ int get_main_op_index(int p, int q) {
   int inside_parentheses = 0; //  ((1) + 1) - 1  可能有多重嵌套，所以得用count来数
   for (int i = p; i <= q; i++) {
     int token_type = tokens[i].type;
-    if (token_type == '(') {
+    if (token_type == TK_L_Parenthese) {
       inside_parentheses++;
       continue;
-    } else if (token_type == ')') {
+    } else if (token_type == TK_R_Parenthese) {
       inside_parentheses--;
       continue;
     }
-    if (token_type > 10 && token_type < 20) {
+    if (token_type < TK_NUM) {
       if (inside_parentheses == 0) {
         if (token_type >= max_priority) {
           // 不是数字，不在括号内，且优先级最低，且靠最右的
-          if (token_type >= TK_ADD) {
-            max_priority = TK_ADD;
-          }
+          max_priority = (token_type / 10) * 10; // 同级的归类
+          // 比如TK_SUB为21，和20的TK_ADD同级，max_priority应该记录20而不是21
           op_index = i;
         }
       }
@@ -336,6 +335,10 @@ word_t eval(int p, int q) {
       return val1 * val2;
     case TK_DIV:
       return val1 / val2;
+    case TK_EQ:
+      return val1 == val2;
+    case TK_AND:
+      return val1 && val2;
     default:
       panic("Not support op: %d", tokens[op_index].type);
     }
@@ -354,7 +357,7 @@ word_t expr(char *e, bool *success) {
   // +1 / -1 / *var
   // (+1) / (-1) / (*var)
   for (int i = 0; i < nr_token; i++) {
-    if (i == 0 || tokens[i - 1].type == '(') {
+    if (i == 0 || tokens[i - 1].type == TK_L_Parenthese || tokens[i - 1].type == TK_EQ || tokens[i - 1].type == TK_AND) {
       switch (tokens[i].type) {
       case TK_ADD:
         tokens[i].type = TK_POS;

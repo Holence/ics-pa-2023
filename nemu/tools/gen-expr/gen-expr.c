@@ -55,8 +55,8 @@ static void gen_num() {
   gen(choose(10) + '0');
 }
 
-static void gen_rand_op() {
-  switch (choose(4)) {
+static void gen_rand_binary_op() {
+  switch (choose(6)) {
   case 0:
     gen('+');
     break;
@@ -69,9 +69,18 @@ static void gen_rand_op() {
   case 3:
     gen('/');
     break;
+  case 4:
+    expr[expr_index++] = '=';
+    expr[expr_index++] = '=';
+    break;
+  case 5:
+    expr[expr_index++] = '&';
+    expr[expr_index++] = '&';
+    break;
   }
 }
-void gen_pos_neg() {
+
+void gen_rand_unary_op() {
   switch (choose(4)) {
   case 0:
     gen('+');
@@ -94,12 +103,12 @@ static void gen_rand_expr() {
     gen_num();
   } else if (ch < 80) {
     gen('(');
-    gen_pos_neg();
+    gen_rand_unary_op();
     gen_rand_expr();
     gen(')');
   } else {
     gen_rand_expr();
-    gen_rand_op();
+    gen_rand_binary_op();
     gen_rand_expr();
   }
 }
@@ -115,12 +124,12 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < loop; i++) {
 
     expr_index = 0;
-    gen_pos_neg();
+    gen_rand_unary_op();
     gen_rand_expr();
     expr[expr_index] = '\0';
     // if expr is shorter than 32 char, expr is accepted
     if (expr_index > 32) {
-      // printf("%s\nlonger than 32 char\n", expr);
+      // printf("LOG: %s    longer than 32 char\n", expr);
       continue;
     }
 
@@ -136,7 +145,7 @@ int main(int argc, char *argv[]) {
     // compile code
     int ret = system("gcc /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) {
-      // printf("%s\ndivide by zero\n", expr);
+      // printf("LOG: %s    divide by zero\n", expr);
       continue;
     }
 
