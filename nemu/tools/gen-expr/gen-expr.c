@@ -42,11 +42,11 @@ static int choose(int max) {
 }
 
 static void gen(char c) {
-  if (choose(4) == 0) {
+  if (choose(20) == 0) {
     expr[expr_index++] = ' '; // random add space
   }
   expr[expr_index++] = c;
-  if (choose(4) == 0) {
+  if (choose(20) == 0) {
     expr[expr_index++] = ' '; // random add space
   }
 }
@@ -71,26 +71,36 @@ static void gen_rand_op() {
     break;
   }
 }
+void gen_pos_neg() {
+  switch (choose(4)) {
+  case 0:
+    gen('+');
+    break;
+  case 1:
+    gen('-');
+    break;
+  default:
+    break;
+  }
+}
 
 static void gen_rand_expr() {
   // if expr is shorter than 32 char, quit generating
   if (expr_index > 32) {
     return;
   }
-  switch (choose(3)) {
-  case 0:
+  int ch = choose(100);
+  if (ch < 40) {
     gen_num();
-    break;
-  case 1:
+  } else if (ch < 80) {
     gen('(');
+    gen_pos_neg();
     gen_rand_expr();
     gen(')');
-    break;
-  default:
+  } else {
     gen_rand_expr();
     gen_rand_op();
     gen_rand_expr();
-    break;
   }
 }
 
@@ -105,10 +115,12 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < loop; i++) {
 
     expr_index = 0;
+    gen_pos_neg();
     gen_rand_expr();
     expr[expr_index] = '\0';
     // if expr is shorter than 32 char, expr is accepted
     if (expr_index > 32) {
+      // printf("%s\nlonger than 32 char\n", expr);
       continue;
     }
 
@@ -123,8 +135,10 @@ int main(int argc, char *argv[]) {
 
     // compile code
     int ret = system("gcc /tmp/.code.c -o /tmp/.expr");
-    if (ret != 0)
+    if (ret != 0) {
+      // printf("%s\ndivide by zero\n", expr);
       continue;
+    }
 
     // run
     fp = popen("/tmp/.expr", "r");

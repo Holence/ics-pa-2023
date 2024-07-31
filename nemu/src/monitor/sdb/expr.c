@@ -21,17 +21,22 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256,
-  TK_EQ,
 
   // 这些数字会在计算时用于优先级判断
-  TK_ADD = 1,
-  TK_SUB = 2,
-  TK_MUL = 3,
-  TK_DIV = 4,
+  // Unary / dereference
+  TK_POS = 1,   // +1
+  TK_NEG = 2,   // -1
+  TK_DEREF = 3, // *var
 
-  /* Add more token types */
-  TK_NUM,
+  // Binary
+  TK_MUL = 11, // 1 * 1
+  TK_DIV = 12,
+  TK_ADD = 13, // 1 + 1
+  TK_SUB = 14,
+
+  TK_NUM = 254,
+  TK_EQ = 255,
+  TK_NOTYPE = 256,
 
 };
 
@@ -113,6 +118,7 @@ static bool make_token(char *e) {
 
         switch (rules[i].token_type) {
         case TK_NOTYPE:
+          // space is omitted
           break;
         case TK_NUM: {
           if (substr_len < 32) {
@@ -214,43 +220,39 @@ int get_main_op_index(int p, int q) {
   // 主运算符的优先级在表达式中是最低的. 这是因为主运算符是最后一步才进行的运算符.
   // 当有多个运算符的优先级都是最低时, 根据结合性, 最后被结合的运算符才是主运算符. 一个例子是1 + 2 + 3, 它的主运算符应该是右边的+.
 
-  int op_index = p + 1; // 直接从第二个开始, 为了让 "-1 * 2" 的找到 * 而不是 -
-  int min_priority = TK_DIV;
-  bool found = false;                             // -(1+2) 这种算是没有main op
-  int inside_parentheses = tokens[p].type == '('; // -( (1) + 1 ) 可能有多重嵌套，所以得用count来数
-  for (int i = p + 1; i <= q; i++) {
-    int token_type = tokens[i].type;
-    if (token_type != TK_NUM) {
-      if (token_type == '(') {
-        inside_parentheses++;
-        continue;
-      } else if (token_type == ')') {
-        inside_parentheses--;
-        continue;
-      }
+  // +1*2 + 3/2 - 1 + 1     这里的第一个是TK_POS，main op是最后面的'+'
+  // -(1+1) + (-1)          这里的第一个是TK_NEG，main op 是两组括号之间的'+'
+  // -(1+1)                 op_index 将等于 p
+  // eval()中会通过判断返回的op_index是否等于p，来决定是unary操作还是binary操作
 
+  int op_index = p;
+  int max_priority = TK_MUL;
+  int inside_parentheses = 0; //  ((1) + 1) - 1  可能有多重嵌套，所以得用count来数
+  for (int i = p; i <= q; i++) {
+    int token_type = tokens[i].type;
+    if (token_type == '(') {
+      inside_parentheses++;
+      continue;
+    } else if (token_type == ')') {
+      inside_parentheses--;
+      continue;
+    }
+    if (token_type > 10 && token_type < 20) {
       if (inside_parentheses == 0) {
-        if (token_type <= min_priority) {
+        if (token_type >= max_priority) {
           // 不是数字，不在括号内，且优先级最低，且靠最右的
-          found = true;
-          // 加减同级
-          if (token_type <= TK_SUB) {
-            min_priority = TK_SUB;
+          if (token_type >= TK_ADD) {
+            max_priority = TK_ADD;
           }
           op_index = i;
         }
       }
     }
   }
-  if (found) {
-    return op_index;
-  } else {
-    return -1;
-  }
+  return op_index;
 }
 
 word_t eval(int p, int q) {
-  // if (q < 0 || p >= nr_token) {
   if (p > q) {
     /* Bad expression
       "3 + " will call eval(0, 0) and eval (2, 1)
@@ -264,7 +266,6 @@ word_t eval(int p, int q) {
      * Return the value of the number.
      */
     if (tokens[p].type == TK_NUM) {
-
       return atoi(tokens[p].str);
     } else {
       bad_expression = true;
@@ -273,6 +274,9 @@ word_t eval(int p, int q) {
   } else if (is_full_parentheses(p, q)) {
     /* The expression is surrounded by a matched pair of parentheses.
      * If that is the case, just throw away the parentheses.
+     * (...) yes
+     * (...) + (...) no
+     * ((...) + (...)) yes
      */
     return eval(p + 1, q - 1);
   } else {
@@ -291,22 +295,25 @@ word_t eval(int p, int q) {
 
     int op_index = get_main_op_index(p, q);
 
-    // not have main op
-    // starting with +/-
-    // +NUMBER / +(1)
+    // not have main op, unary structure
+    // starting with +/-/*
+    // +NUMBER / +(1) / *var / *(var+1)
     // -(-(+1))
-    if (op_index == -1) {
-      if (tokens[p].type == TK_ADD) {
+    if (op_index == p) {
+      if (tokens[p].type == TK_POS) {
         return eval(p + 1, q);
-      } else if (tokens[p].type == TK_SUB) {
+      } else if (tokens[p].type == TK_NEG) {
+        return -eval(p + 1, q);
+      } else if (tokens[p].type == TK_DEREF) {
+        // TODO
         return -eval(p + 1, q);
       } else {
-        bad_expression = true;
-        return 0;
+        panic("Why are you here?? eval() op_index==q");
       }
     }
 
-    // have main op
+    // have main op, binary structure
+    // -4 + 3 * 1
     // -(-1+1) + 1
     /*
      * 为了正确地计算负数的乘法除法，这里 val1, val2 先用int表示，最后返回到expr()时会被解释为word_t
@@ -342,6 +349,28 @@ word_t expr(char *e, bool *success) {
   }
 
   /* Insert codes to evaluate the expression. */
+
+  // convert to unary
+  // +1 / -1 / *var
+  // (+1) / (-1) / (*var)
+  for (int i = 0; i < nr_token; i++) {
+    if (i == 0 || tokens[i - 1].type == '(') {
+      switch (tokens[i].type) {
+      case TK_ADD:
+        tokens[i].type = TK_POS;
+        break;
+      case TK_SUB:
+        tokens[i].type = TK_NEG;
+        break;
+      case TK_MUL:
+        tokens[i].type = TK_DEREF;
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
   bad_expression = false;
   word_t result = eval(0, nr_token - 1);
   if (bad_expression) {
