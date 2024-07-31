@@ -52,15 +52,31 @@ static void gen(char c) {
 }
 
 static void gen_num() {
-  gen(choose(10) + '0');
+  int num = choose(16);
+  if (num < 10) {
+    gen(num + '0');
+  } else {
+    expr[expr_index++] = '0';
+    expr[expr_index++] = 'x';
+    expr[expr_index++] = num - 10 + 'A';
+  }
 }
 
 static void gen_rand_binary_op() {
-  switch (choose(6)) {
+
+  switch (choose(7)) {
   case 0:
+    // c语言必须在0x数字后加空格才能连+/-操作符？？
+    // 不然就不给编译 error: invalid suffix "+" on integer constant
+    if (expr[expr_index - 1] >= 'A' && expr[expr_index - 1] <= 'F')
+      expr[expr_index++] = ' ';
     gen('+');
     break;
   case 1:
+    // c语言必须在0x数字后加空格才能连+/-操作符？？
+    // 不然就不给编译 error: invalid suffix "+" on integer constant
+    if (expr[expr_index - 1] >= 'A' && expr[expr_index - 1] <= 'F')
+      expr[expr_index++] = ' ';
     gen('-');
     break;
   case 2:
@@ -76,6 +92,10 @@ static void gen_rand_binary_op() {
   case 5:
     expr[expr_index++] = '&';
     expr[expr_index++] = '&';
+    break;
+  case 6:
+    expr[expr_index++] = '!';
+    expr[expr_index++] = '=';
     break;
   }
 }
@@ -126,7 +146,7 @@ int main(int argc, char *argv[]) {
     expr_index = 0;
     gen_rand_unary_op();
     gen_rand_expr();
-    expr[expr_index] = '\0';
+    expr[expr_index++] = '\0';
     // if expr is shorter than 32 char, expr is accepted
     if (expr_index > 32) {
       // printf("LOG: %s    longer than 32 char\n", expr);

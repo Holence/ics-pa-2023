@@ -23,8 +23,11 @@
 enum {
 
   // 这些数字会在计算时用于优先级判断
-  TK_L_Parenthese = 0,
-  TK_R_Parenthese = 1,
+  TK_NOTYPE = 0,       // space
+  TK_L_Parenthese = 2, // (
+  TK_R_Parenthese = 3, // )
+  TK_HEX = 8,          // number
+  TK_NUM = 9,          // number
 
   // Unary / dereference
   TK_POS = 10,   // +1
@@ -39,10 +42,9 @@ enum {
   TK_SUB = 31, // 1 - 1
 
   TK_EQ = 40,  // 1 == 1
-  TK_AND = 50, // 1 && 1
+  TK_NEQ = 41, // 1 != 1
 
-  TK_NUM = 255,    // number
-  TK_NOTYPE = 256, // space
+  TK_AND = 50, // 1 && 1
 };
 
 static struct rule {
@@ -64,9 +66,11 @@ static struct rule {
     {"/", TK_DIV},
 
     {"==", TK_EQ},  // equal
+    {"!=", TK_NEQ}, // equal
     {"&&", TK_AND}, // and
 
-    {"[0-9]+", TK_NUM}, // number
+    {"0x[0-9A-Fa-f]+", TK_HEX}, // hex number
+    {"[0-9]+", TK_NUM},         // number c的正则库里竟然连\d都不支持……
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -126,6 +130,7 @@ static bool make_token(char *e) {
         case TK_NOTYPE:
           // space is omitted
           break;
+        case TK_HEX:
         case TK_NUM: {
           if (substr_len < 32) {
             strcpy(tokens[nr_token].str, substr_start);
@@ -237,7 +242,7 @@ int get_main_op_index(int p, int q) {
       inside_parentheses--;
       continue;
     }
-    if (token_type < TK_NUM) {
+    if (token_type > TK_NUM) {
       if (inside_parentheses == 0) {
         if (token_type >= max_priority) {
           // 不是数字，不在括号内，且优先级最低，且靠最右的
@@ -266,6 +271,8 @@ word_t eval(int p, int q) {
      */
     if (tokens[p].type == TK_NUM) {
       return atoi(tokens[p].str);
+    } else if (tokens[p].type == TK_HEX) {
+      return strtol(tokens[p].str, NULL, 16);
     } else {
       bad_expression = true;
       return 0;
@@ -337,6 +344,8 @@ word_t eval(int p, int q) {
       return val1 / val2;
     case TK_EQ:
       return val1 == val2;
+    case TK_NEQ:
+      return val1 != val2;
     case TK_AND:
       return val1 && val2;
     default:
@@ -356,8 +365,9 @@ word_t expr(char *e, bool *success) {
   // convert to unary
   // +1 / -1 / *var
   // (+1) / (-1) / (*var)
+  // +1 == -1 / +1 != -1 / +1 && -1
   for (int i = 0; i < nr_token; i++) {
-    if (i == 0 || tokens[i - 1].type == TK_L_Parenthese || tokens[i - 1].type == TK_EQ || tokens[i - 1].type == TK_AND) {
+    if (i == 0 || tokens[i - 1].type == TK_L_Parenthese || tokens[i - 1].type >= TK_EQ) {
       switch (tokens[i].type) {
       case TK_ADD:
         tokens[i].type = TK_POS;

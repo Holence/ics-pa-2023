@@ -48,7 +48,25 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 
 ## 表达式求值
 
-其中的`p EXPR`指令需要自己写表达式求值的工具。随机生成测试，是先随机出一个表达式，然后写入一个`temp.c`的临时文件，编译，开进程运行，`./gen-expr 1000 > input`生成多组结果和表达式
+`p EXPR`指令需要自己写表达式求值的工具。
+
+```
+(nemu) p <expr>
+其中 <expr> 为 <decimal-number>
+  | <hexadecimal-number>    # 以"0x"开头
+  | <reg_name>              # 以"$"开头
+  | "(" <expr> ")"
+  | <expr> "+" <expr>
+  | <expr> "-" <expr>
+  | <expr> "*" <expr>
+  | <expr> "/" <expr>
+  | <expr> "==" <expr>
+  | <expr> "!=" <expr>
+  | <expr> "&&" <expr>
+  | "*" <expr>              # 指针解引用（不用解引用程序中变量，只是把数值或寄存器中的值当作地址，再从内存中取出即可）
+```
+ 
+最后随机生成测试，是先随机出一个表达式（与寄存器、内存相关的不用随机测试，自己手动测几个就行了），然后写入一个`temp.c`的临时文件，编译，开进程运行，`./gen-expr 1000 > input`生成多组结果和表达式
 
 > 过滤除以0的case，可以用signal，但遇到0乘以时`(1 / 0) * 0`，运行却没有异常，这种实在没法探测
 >
