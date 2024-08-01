@@ -26,6 +26,7 @@ enum {
   TK_NOTYPE = 0,       // space
   TK_L_Parenthese = 2, // (
   TK_R_Parenthese = 3, // )
+  TK_REG = 7,          // number
   TK_HEX = 8,          // number
   TK_NUM = 9,          // number
 
@@ -69,6 +70,7 @@ static struct rule {
     {"!=", TK_NEQ}, // equal
     {"&&", TK_AND}, // and
 
+    {"\\$[0-9a-z]+", TK_REG},   // $reg
     {"0x[0-9A-Fa-f]+", TK_HEX}, // hex number
     {"[0-9]+", TK_NUM},         // number c的正则库里竟然连\d都不支持……
 };
@@ -130,10 +132,12 @@ static bool make_token(char *e) {
         case TK_NOTYPE:
           // space is omitted
           break;
+
+        case TK_REG:
         case TK_HEX:
         case TK_NUM: {
           if (substr_len < 32) {
-            strcpy(tokens[nr_token].str, substr_start);
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
           } else {
             panic("token not less than 32 char: %s", substr_start);
           }
@@ -154,8 +158,6 @@ static bool make_token(char *e) {
 
   return true;
 }
-
-static bool bad_expression;
 
 bool is_full_parentheses(int p, int q) {
   if (tokens[p].type == TK_L_Parenthese && tokens[q].type == TK_R_Parenthese) {
@@ -256,24 +258,35 @@ int get_main_op_index(int p, int q) {
   return op_index;
 }
 
+static bool bad_expression;
+
 word_t eval(int p, int q) {
   if (p > q) {
     /* Bad expression
       "3 + " will call eval(0, 0) and eval (2, 1)
-      " + 3" will call eval(0, -1) and eval (1, 1)
      */
     bad_expression = true;
     return 0;
   } else if (p == q) {
     /* Single token.
-     * For now this token should be a number.
-     * Return the value of the number.
+     * $reg / 0x1A / 14
      */
-    if (tokens[p].type == TK_NUM) {
-      return atoi(tokens[p].str);
-    } else if (tokens[p].type == TK_HEX) {
+    switch (tokens[p].type) {
+    case TK_REG:
+      bool success;
+      word_t reg_value = isa_reg_str2val(tokens[p].str + 1, &success); // +1 means skip the starting '$'
+      if (!success) {
+        printf(ANSI_FMT("Cannot find register named \"%s\"\n", ANSI_FG_RED), tokens[p].str + 1);
+        bad_expression = true;
+        return 0;
+      } else {
+        return reg_value;
+      }
+    case TK_HEX:
       return strtol(tokens[p].str, NULL, 16);
-    } else {
+    case TK_NUM:
+      return atoi(tokens[p].str);
+    default:
       bad_expression = true;
       return 0;
     }
@@ -355,6 +368,7 @@ word_t eval(int p, int q) {
 }
 
 word_t expr(char *e, bool *success) {
+  *success = true;
   if (!make_token(e)) {
     *success = false;
     return 0;

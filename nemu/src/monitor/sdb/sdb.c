@@ -74,7 +74,7 @@ static struct {
     /* Add more commands */
     {"si", "Step by machine instructions: si [N], step N instructions, N default to 1", cmd_si},
     {"info", "Show info: `info r` to print registers, `info w` to print watchpoints", cmd_info},
-    {"x", "Examine memory at address expr: `x [N] EXPR`, print N*4 bytes after M[EXPR], N default to 1", cmd_x},
+    {"x", "Examine memory at address expr: `x N EXPR`, print N*4 bytes after M[EXPR]", cmd_x},
     {"p", "Show value of expr", cmd_p},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
     // {"d", "Delete watchpoint", cmd_d},
@@ -140,33 +140,22 @@ static int cmd_info(char *args) {
 static int cmd_x(char *args) {
   /* extract the first argument */
   char *first = strtok(NULL, " ");
-  char *second = strtok(NULL, " ");
-
   if (first == NULL) {
     /* no argument given */
-    printf("usage: x [N] EXPR\n");
+    printf("usage: x N EXPR\n");
   } else {
-
-    // x EXPR
-    int len = 1;
-    // x N EXPR
-    bool success = true;
-    vaddr_t base_address;
-    if (second == NULL) {
-      base_address = expr(first, &success);
-    } else {
-      base_address = expr(second, &success);
-      len = atoi(first);
-    }
-
+    int N = atoi(first);
+    char *second = args + strlen(first) + 1;
+    bool success;
+    vaddr_t base_address = expr(second, &success);
     if (success) {
       // print format
       // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
       // 0x80000010: 0x00000005 0x00000006
       int i;
-      for (i = 0; i < len; i++) {
+      for (i = 0; i < N; i++) {
         if (i % 4 == 0) {
-          printf("0x%8x: ", base_address);
+          printf(ANSI_FMT("0x%8x: ", ANSI_FG_CYAN), base_address);
         }
         printf("0x%08x ", vaddr_read(base_address, 4));
         base_address += 4;
@@ -178,31 +167,19 @@ static int cmd_x(char *args) {
         printf("\n");
       }
     } else {
-      printf("Invalid EXPR\n");
+      printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
     }
   }
   return 0;
 }
 
 static int cmd_p(char *args) {
-  if (args == NULL) {
-    /* no argument given */
-    printf("usage: p EXPR\n");
+  bool success;
+  word_t result = expr(args, &success);
+  if (success) {
+    printf("%u\n", result);
   } else {
-    // strip space
-    while (args[0] == ' ')
-      args++;
-    if (args[0] == '\0') {
-      printf("usage: p EXPR\n");
-    } else {
-      bool success = true;
-      word_t result = expr(args, &success);
-      if (success) {
-        printf("%u\n", result);
-      } else {
-        printf("Invalid EXPR\n");
-      }
-    }
+    printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
   }
   return 0;
 }

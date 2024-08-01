@@ -54,7 +54,7 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 (nemu) p <expr>
 其中 <expr> 为 <decimal-number>
   | <hexadecimal-number>    # 以"0x"开头
-  | <reg_name>              # 以"$"开头
+  | <reg_name>              # "$ra" / "$pc"
   | "(" <expr> ")"
   | <expr> "+" <expr>
   | <expr> "-" <expr>

@@ -23,6 +23,7 @@ const char *regs[] = {
     "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
 
 void isa_reg_display() {
+  printf("pc        0x%-*x  %d\n", (int)sizeof(vaddr_t) * 2, cpu.pc, cpu.pc);
   int data_length = sizeof(word_t) * 2;
   for (int i = 0; i < ARRLEN(regs); i++) {
     printf("%-8s  0x%-*x  %d\n", regs[i], data_length, gpr(i), gpr(i));
@@ -30,5 +31,19 @@ void isa_reg_display() {
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  *success = false;
+  // pc
+  if (strcmp("pc", s) == 0) {
+    *success = true;
+    return cpu.pc;
+  }
+  // gpr
+  for (int i = 0; i < ARRLEN(regs); i++) {
+    if (strcmp(regs[i], s) == 0) {
+      *success = true;
+      return gpr(i);
+    }
+  }
+  *success = false;
   return 0;
 }
