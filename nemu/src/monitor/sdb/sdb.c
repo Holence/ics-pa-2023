@@ -68,44 +68,53 @@ static struct {
   const char *description;
   int (*handler)(char *);
 } cmd_table[] = {
-    {"help", "Display information about all supported commands", cmd_help},
+    {"help", "Display information about all supported commands\n      help [cmd]", cmd_help},
     {"c", "Continue the execution of the program", cmd_c},
     {"q", "Exit NEMU", cmd_q},
 
     /* Add more commands */
-    {"si", "Step by machine instructions: si [N], step N instructions, N default to 1", cmd_si},
-    {"info", "Show info: `info r` to print registers, `info w` to print watchpoints", cmd_info},
-    {"x", "Examine memory at address expr: `x N EXPR`, print N*4 bytes after M[EXPR]", cmd_x},
-    {"p", "Show value of expr", cmd_p},
-    {"px", "Show value of expr", cmd_px},
+    {"si", "Step by machine instructions\n      si [N]: step N instructions, N default to 1", cmd_si},
+    {"info", "Show info\n      info r: to print registers\n      info w: to print watchpoints", cmd_info},
+    {"x", "Examine memory at address expr\n      x N EXPR: print N*4 bytes after M[EXPR], N is a positive int", cmd_x},
+    {"p", "Show value of expr in decimal\n      p EXPR", cmd_p},
+    {"px", "Show value of expr in hexadecimal\n      px EXPR", cmd_px},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
     // {"d", "Delete watchpoint", cmd_d},
-
 };
 
 #define NR_CMD ARRLEN(cmd_table)
 
-static int cmd_help(char *args) {
+bool is_args_empty(char *s) {
+  if (s == NULL)
+    return true;
+  while (s[0] == ' ')
+    s++;
+  if (s[0] == '\0')
+    return true;
+  else
+    return false;
+}
+
+static int cmd_help(char *arg) {
   /* extract the first argument */
-  char *arg = strtok(NULL, " ");
   // NULL means to continue tokenizing the string you passed in previous call to strtok()
   int i;
 
-  if (arg == NULL) {
+  if (is_args_empty(arg)) {
     /* no argument given */
     // print all cmd info
     for (i = 0; i < NR_CMD; i++) {
-      printf("%s - %s\n", cmd_table[i].name, cmd_table[i].description);
+      printf("%-4s: %s\n", cmd_table[i].name, cmd_table[i].description);
     }
   } else {
     // print the named one
     for (i = 0; i < NR_CMD; i++) {
       if (strcmp(arg, cmd_table[i].name) == 0) {
-        printf("%s - %s\n", cmd_table[i].name, cmd_table[i].description);
+        printf("%-4s - %s\n", cmd_table[i].name, cmd_table[i].description);
         return 0;
       }
     }
-    printf("Unknown command '%s'\n", arg);
+    printf(ANSI_FMT("Unknown command '%s'\n", ANSI_FG_RED), arg);
   }
   return 0;
 }
@@ -126,28 +135,17 @@ static int cmd_info(char *args) {
 
   if (arg == NULL) {
     /* no argument given */
-    printf("usage: info r / info w\n");
+    return 1;
   } else {
     if (strcmp(arg, "r") == 0) {
       isa_reg_display();
     } else if (strcmp(arg, "w") == 0) {
       printf("info watchpoint\n");
     } else {
-      printf("usage: info r / info w\n");
+      return 1;
     }
   }
   return 0;
-}
-
-bool is_args_empty(char *s) {
-  if (s == NULL)
-    return true;
-  while (s[0] == ' ')
-    s++;
-  if (s[0] == '\0')
-    return true;
-  else
-    return false;
 }
 
 static int cmd_x(char *args) {
@@ -155,22 +153,19 @@ static int cmd_x(char *args) {
   char *first = strtok(NULL, " ");
   if (first == NULL) {
     /* no argument given */
-    printf("usage: x N EXPR\n");
-    return 0;
+    return 1;
   }
 
   int N = atoi(first);
   if (N == 0 || arg_str_len == strlen(first)) {
     /* no EXPR given */
-    printf("usage: x N EXPR\n");
-    return 0;
+    return 1;
   }
 
   char *second = args + strlen(first) + 1;
   if (is_args_empty(second)) {
     /* EXPR is empty */
-    printf("usage: x N EXPR\n");
-    return 0;
+    return 1;
   }
 
   bool success;
@@ -203,8 +198,7 @@ static int cmd_x(char *args) {
 
 static int cmd_p(char *args) {
   if (is_args_empty(args)) {
-    printf("usage: p EXPR\n");
-    return 0;
+    return 1;
   }
 
   bool success;
@@ -219,8 +213,7 @@ static int cmd_p(char *args) {
 
 static int cmd_px(char *args) {
   if (is_args_empty(args)) {
-    printf("usage: p EXPR\n");
-    return 0;
+    return 1;
   }
 
   bool success;
@@ -270,15 +263,26 @@ void sdb_mainloop() {
     int i;
     for (i = 0; i < NR_CMD; i++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
-        if (cmd_table[i].handler(args) < 0) {
+        int ret = cmd_table[i].handler(args);
+
+        // ret == 1, invalid cmd format
+        if (ret == 1) {
+          printf(ANSI_FMT("Invalid cmd format\n", ANSI_FG_RED));
+          cmd_help(cmd);
+        }
+
+        // ret == -1, quit cmd
+        else if (ret == -1) {
           return; // exit main loop
         }
+
+        // ret == 0, continue
         break;
       }
     }
 
     if (i == NR_CMD) {
-      printf("Unknown command '%s'\n", cmd);
+      printf(ANSI_FMT("Unknown command '%s'\n", ANSI_FG_RED), cmd);
     }
   }
   // main loop
