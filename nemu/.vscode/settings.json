@@ -1,0 +1,37 @@
+{
+    "files.associations": {
+        "random": "c",
+        "exception": "c",
+        "new": "c",
+        "sdb.h": "c",
+        "common.h": "c",
+        "stdint.h": "c",
+        "isa.h": "c",
+        "cpu.h": "c",
+        "reg.h": "c",
+        "readline.h": "c",
+        "vaddr.h": "c",
+        "decode.h": "c",
+        "locale.h": "c",
+        "*.tcc": "c",
+        "debug.h": "c"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "${workspaceFolder}/build",
+            "binaryPath": "${workspaceFolder}/build/riscv32-nemu-interpreter",
+            "binaryArgs": []
+        }
+    ],
+    "formatFiles.excludedFolders": [
+        "node_modules",
+        ".vscode",
+        ".git",
+        "dist",
+        ".chrome",
+        "tools",
+        "build",
+        "include"
+    ],
+    "formatFiles.extensionsToInclude": "c, h"
+}
