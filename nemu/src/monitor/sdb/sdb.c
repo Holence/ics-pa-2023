@@ -150,27 +150,35 @@ static int cmd_x(char *args) {
     // x EXPR
     int len = 1;
     // x N EXPR
-    if (second != NULL) {
+    bool success = true;
+    vaddr_t base_address;
+    if (second == NULL) {
+      base_address = expr(first, &success);
+    } else {
+      base_address = expr(second, &success);
       len = atoi(first);
     }
 
-    vaddr_t base_address = 0x80000000;
-    // print format
-    // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
-    // 0x80000010: 0x00000005 0x00000006
-    int i;
-    for (i = 0; i < len; i++) {
-      if (i % 4 == 0) {
-        printf("0x%8x: ", base_address);
+    if (success) {
+      // print format
+      // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
+      // 0x80000010: 0x00000005 0x00000006
+      int i;
+      for (i = 0; i < len; i++) {
+        if (i % 4 == 0) {
+          printf("0x%8x: ", base_address);
+        }
+        printf("0x%08x ", vaddr_read(base_address, 4));
+        base_address += 4;
+        if (i % 4 == 3) {
+          printf("\n");
+        }
       }
-      printf("0x%08x ", vaddr_read(base_address, 4));
-      base_address += 4;
-      if (i % 4 == 3) {
+      if (i % 4 != 0) {
         printf("\n");
       }
-    }
-    if (i % 4 != 0) {
-      printf("\n");
+    } else {
+      printf("Invalid EXPR\n");
     }
   }
   return 0;
