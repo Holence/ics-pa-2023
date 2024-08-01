@@ -14,6 +14,7 @@
  ***************************************************************************************/
 
 #include <isa.h>
+#include <memory/vaddr.h>
 
 /* We use the POSIX regex functions to process regular expressions.
  * Type 'man regex' for more information about POSIX regex functions.
@@ -30,7 +31,7 @@ enum {
   TK_HEX = 8,          // number
   TK_NUM = 9,          // number
 
-  // Unary / dereference
+  // Unary
   TK_POS = 10,   // +1
   TK_NEG = 11,   // -1
   TK_DEREF = 12, // *var
@@ -61,9 +62,9 @@ static struct rule {
     {"\\(", TK_L_Parenthese}, // (
     {"\\)", TK_R_Parenthese}, // )
 
-    {"\\+", TK_ADD},
-    {"-", TK_SUB},
-    {"\\*", TK_MUL},
+    {"\\+", TK_ADD}, // ADD or POS
+    {"-", TK_SUB},   // SUB or NEG
+    {"\\*", TK_MUL}, // MUL or DEREF
     {"/", TK_DIV},
 
     {"==", TK_EQ},  // equal
@@ -138,6 +139,8 @@ static bool make_token(char *e) {
         case TK_NUM: {
           if (substr_len < 32) {
             strncpy(tokens[nr_token].str, substr_start, substr_len);
+            // if source is less than dest, must manually add '\0'
+            tokens[nr_token].str[substr_len] = '\0';
           } else {
             panic("token not less than 32 char: %s", substr_start);
           }
@@ -314,7 +317,7 @@ word_t eval(int p, int q) {
 
     int op_index = get_main_op_index(p, q);
 
-    // not have main op, unary structure
+    // not have main op, Unary structure
     // starting with +/-/*
     // +NUMBER / +(1) / *var / *(var+1)
     // -(-(+1))
@@ -324,14 +327,13 @@ word_t eval(int p, int q) {
       } else if (tokens[p].type == TK_NEG) {
         return -eval(p + 1, q);
       } else if (tokens[p].type == TK_DEREF) {
-        // TODO
-        return -eval(p + 1, q);
+        return vaddr_read(eval(p + 1, q), sizeof(word_t));
       } else {
         panic("Why are you here?? eval() op_index==q");
       }
     }
 
-    // have main op, binary structure
+    // have main op, Binary structure
     // -4 + 3 * 1
     // -(-1+1) + 1
     /*

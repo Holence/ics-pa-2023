@@ -59,6 +59,7 @@ static int cmd_si(char *args);
 static int cmd_info(char *args);
 static int cmd_x(char *args);
 static int cmd_p(char *args);
+static int cmd_px(char *args);
 // static int cmd_w(char *args);
 // static int cmd_d(char *args);
 
@@ -76,6 +77,7 @@ static struct {
     {"info", "Show info: `info r` to print registers, `info w` to print watchpoints", cmd_info},
     {"x", "Examine memory at address expr: `x N EXPR`, print N*4 bytes after M[EXPR]", cmd_x},
     {"p", "Show value of expr", cmd_p},
+    {"px", "Show value of expr", cmd_px},
     // {"w", "Set a watchpoint for expression expr", cmd_w},
     // {"d", "Delete watchpoint", cmd_d},
 
@@ -137,47 +139,94 @@ static int cmd_info(char *args) {
   return 0;
 }
 
+bool is_args_empty(char *s) {
+  if (s == NULL)
+    return true;
+  while (s[0] == ' ')
+    s++;
+  if (s[0] == '\0')
+    return true;
+  else
+    return false;
+}
+
 static int cmd_x(char *args) {
-  /* extract the first argument */
+  int arg_str_len = strlen(args);
   char *first = strtok(NULL, " ");
   if (first == NULL) {
     /* no argument given */
     printf("usage: x N EXPR\n");
-  } else {
-    int N = atoi(first);
-    char *second = args + strlen(first) + 1;
-    bool success;
-    vaddr_t base_address = expr(second, &success);
-    if (success) {
-      // print format
-      // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
-      // 0x80000010: 0x00000005 0x00000006
-      int i;
-      for (i = 0; i < N; i++) {
-        if (i % 4 == 0) {
-          printf(ANSI_FMT("0x%8x: ", ANSI_FG_CYAN), base_address);
-        }
-        printf("0x%08x ", vaddr_read(base_address, 4));
-        base_address += 4;
-        if (i % 4 == 3) {
-          printf("\n");
-        }
+    return 0;
+  }
+
+  int N = atoi(first);
+  if (N == 0 || arg_str_len == strlen(first)) {
+    /* no EXPR given */
+    printf("usage: x N EXPR\n");
+    return 0;
+  }
+
+  char *second = args + strlen(first) + 1;
+  if (is_args_empty(second)) {
+    /* EXPR is empty */
+    printf("usage: x N EXPR\n");
+    return 0;
+  }
+
+  bool success;
+  vaddr_t base_address = expr(second, &success);
+  if (success) {
+    // print format
+    // address   : value      value      value      value
+    // 0x80000000: 0x00000001 0x00000002 0x00000003 0x00000004
+    // 0x80000010: 0x00000005 0x00000006
+    int i;
+    for (i = 0; i < N; i++) {
+      if (i % 4 == 0) {
+        printf(ANSI_FMT("0x%8x: ", ANSI_FG_CYAN), base_address);
       }
-      if (i % 4 != 0) {
+      printf("0x%08x ", vaddr_read(base_address, sizeof(word_t)));
+      base_address += 4;
+      if (i % 4 == 3) {
         printf("\n");
       }
-    } else {
-      printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
     }
+    if (i % 4 != 0) {
+      printf("\n");
+    }
+  } else {
+    printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
   }
+
   return 0;
 }
 
 static int cmd_p(char *args) {
+  if (is_args_empty(args)) {
+    printf("usage: p EXPR\n");
+    return 0;
+  }
+
   bool success;
   word_t result = expr(args, &success);
   if (success) {
     printf("%u\n", result);
+  } else {
+    printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
+  }
+  return 0;
+}
+
+static int cmd_px(char *args) {
+  if (is_args_empty(args)) {
+    printf("usage: p EXPR\n");
+    return 0;
+  }
+
+  bool success;
+  word_t result = expr(args, &success);
+  if (success) {
+    printf("0x%08x\n", result);
   } else {
     printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
   }
