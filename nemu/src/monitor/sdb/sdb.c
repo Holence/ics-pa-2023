@@ -60,8 +60,8 @@ static int cmd_info(char *args);
 static int cmd_x(char *args);
 static int cmd_p(char *args);
 static int cmd_px(char *args);
-// static int cmd_w(char *args);
-// static int cmd_d(char *args);
+static int cmd_w(char *args);
+static int cmd_d(char *args);
 
 static struct {
   const char *name;
@@ -78,8 +78,8 @@ static struct {
     {"x", "Examine memory at address expr\n      x N EXPR: print N*4 bytes after M[EXPR], N is a positive int", cmd_x},
     {"p", "Show value of expr in decimal\n      p EXPR", cmd_p},
     {"px", "Show value of expr in hexadecimal\n      px EXPR", cmd_px},
-    // {"w", "Set a watchpoint for expression expr", cmd_w},
-    // {"d", "Delete watchpoint", cmd_d},
+    {"w", "Set a watchpoint for expression expr\n      w EXPR", cmd_w},
+    {"d", "Delete watchpoint", cmd_d},
 };
 
 #define NR_CMD ARRLEN(cmd_table)
@@ -138,10 +138,13 @@ static int cmd_info(char *args) {
     return 1;
   } else {
     if (strcmp(arg, "r") == 0) {
+      // info r
       isa_reg_display();
     } else if (strcmp(arg, "w") == 0) {
-      printf("info watchpoint\n");
+      // info w
+      print_wp();
     } else {
+      // info ???
       return 1;
     }
   }
@@ -222,6 +225,41 @@ static int cmd_px(char *args) {
     printf("0x%08x\n", result);
   } else {
     printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
+  }
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (is_args_empty(args)) {
+    return 1;
+  }
+
+  bool success;
+  word_t result = expr(args, &success);
+  if (success) {
+    WP *wp = new_wp(args, result);
+    if (wp == NULL) {
+      printf(ANSI_FMT("Watchpoint pool is full!\n", ANSI_FG_RED));
+    } else {
+      printf("New watchpoint %d: %s\n", wp->NO, wp->expr_);
+    }
+  } else {
+    printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
+  }
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  char *arg = strtok(NULL, " ");
+
+  if (arg == NULL) {
+    /* no argument given */
+    return 1;
+  } else {
+    int NO_ = atoi(arg);
+    if (free_wp(NO_) == NULL) {
+      printf(ANSI_FMT("No watchpoint number %d.\n", ANSI_FG_RED), NO_);
+    }
   }
   return 0;
 }

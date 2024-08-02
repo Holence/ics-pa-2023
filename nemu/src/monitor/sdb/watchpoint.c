@@ -15,18 +15,9 @@
 
 #include "sdb.h"
 
-#define NR_WP 32
-
-typedef struct watchpoint {
-  int NO;
-  struct watchpoint *next;
-
-  /* TODO: Add more members if necessary */
-
-} WP;
-
 static WP wp_pool[NR_WP] = {};
-static WP *head = NULL, *free_ = NULL;
+static WP *wp_assigned = NULL;
+static WP *wp_free = NULL;
 
 void init_wp_pool() {
   int i;
@@ -35,8 +26,78 @@ void init_wp_pool() {
     wp_pool[i].next = (i == NR_WP - 1 ? NULL : &wp_pool[i + 1]);
   }
 
-  head = NULL;
-  free_ = wp_pool;
+  wp_assigned = NULL;
+  wp_free = wp_pool;
 }
 
-/* TODO: Implement the functionality of watchpoint */
+/* Implement the functionality of watchpoint */
+WP *new_wp(char *expr_, word_t init_value) {
+  if (wp_free == NULL) {
+    return NULL;
+  }
+
+  // 从wp_free的头上取出
+  WP *wp = wp_free;
+  wp_free = wp_free->next;
+  strcpy(wp->expr_, expr_);
+  wp->next = NULL;
+  wp->old_value = init_value;
+
+  // 添加在wp_assigned的尾部
+  if (wp_assigned == NULL) {
+    wp_assigned = wp;
+  } else {
+    WP *ptr = wp_assigned;
+    while (ptr->next != NULL) {
+      ptr = ptr->next;
+    }
+    ptr->next = wp;
+  }
+
+  return wp;
+}
+
+WP *free_wp(int NO_) {
+  if (wp_assigned == NULL) {
+    return NULL;
+  } else {
+    WP *ptr = wp_assigned;
+    WP *ptr_prev = NULL;
+    WP *wp = NULL;
+    while (ptr) {
+      if (ptr->NO == NO_) {
+        wp = ptr;
+        break;
+      }
+      ptr_prev = ptr;
+      ptr = ptr->next;
+    }
+
+    if (wp == NULL) {
+      return NULL;
+    } else {
+      // 从wp_assigned中取出
+      if (ptr_prev == NULL) {
+        // 第一个就是wp
+        wp_assigned = wp->next;
+      } else {
+        // wp在中间
+        ptr_prev->next = wp->next;
+      }
+
+      // 放到wp_free的头上
+      wp->next = wp_free;
+      wp_free = wp;
+
+      return wp;
+    }
+  }
+}
+
+void print_wp() {
+  WP *ptr = wp_assigned;
+  while (ptr != NULL) {
+    printf("%d: %s\n", ptr->NO, ptr->expr_);
+    ptr = ptr->next;
+  }
+}
