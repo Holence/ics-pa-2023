@@ -27,11 +27,12 @@ typedef struct watchpoint {
   word_t old_value;
 } WP;
 
-#define NR_WP 4
+#define NR_WP 32
 
 word_t expr(char *e, bool *success);
 WP *new_wp(char *expr_, word_t init_value);
 WP *free_wp(int NO_);
 void print_wp();
+void wp_check_changed();
 
 #endif

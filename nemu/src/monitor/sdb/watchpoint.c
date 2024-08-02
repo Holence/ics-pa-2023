@@ -101,3 +101,23 @@ void print_wp() {
     ptr = ptr->next;
   }
 }
+
+/**
+ * watchpoint检查是否有更新，若有的话，打印新旧值，并暂停exec
+ */
+void wp_check_changed() {
+  WP *ptr = wp_assigned;
+  bool success;
+  while (ptr) {
+    word_t result = expr(ptr->expr_, &success);
+    if (!success) {
+      panic("Cannot evaluate expr in watchpoint %d: %s", ptr->NO, ptr->expr_);
+    }
+    if (result != ptr->old_value) {
+      printf("Watchpoint %d: %s\n\nOld value = 0x%08x\nNew value = 0x%08x\n\n", ptr->NO, ptr->expr_, ptr->old_value, result);
+      ptr->old_value = result;
+      nemu_state.state = NEMU_STOP;
+    }
+    ptr = ptr->next;
+  }
+}
