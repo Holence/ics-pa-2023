@@ -15,10 +15,11 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
         {
             "name": "(gdb) Launch",
             "type": "cppdbg",
+            "preLaunchTask": "Make",
             "request": "launch",
-            "program": "/home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter",
+            "program": "${workspaceFolder}/build/riscv32-nemu-interpreter",
             "args": [
-                "--log=/home/hc/ics-pa-2023/nemu/build/nemu-log.txt"
+                "--log=${workspaceFolder}/build/nemu-log.txt",
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -46,6 +47,16 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 
 制作简易的调试器（因为硬件都是模拟出来的，打印寄存器、内存也就是打印出数组中的值）。读代码，找到需要调用的函数或需要访问的static变量（应该是需要手动添加include的）。
 
+```
+(nemu) x 8 $pc
+0x80000000: 0x00000297 0x00028823 0x0102c503 0x00100073 
+0x80000010: 0xdeadbeef 0x5a5a5a5a 0x5a5a5a5a 0x5a5a5a5a 
+(nemu) px *($pc)
+0x00000297
+(nemu) px *($pc+4*4)
+0xdeadbeef
+```
+
 ## 表达式求值
 
 `p EXPR`指令需要自己写表达式求值的工具。
@@ -63,7 +74,7 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
   | <expr> "==" <expr>
   | <expr> "!=" <expr>
   | <expr> "&&" <expr>
-  | "*" <expr>              # 指针解引用（不用解引用程序中变量，只是把数值或寄存器中的值当作地址，再从内存中取出即可）
+  | "*" <expr>              # 指针解引用（只用支持数值或寄存器的值作为地址，不用支持gdb那样的变量作为地址）
 ```
  
 最后随机生成测试，是先随机出一个表达式（与寄存器、内存相关的不用随机测试，自己手动测几个就行了），然后写入一个`temp.c`的临时文件，编译，开进程运行，`./gen-expr 1000 > input`生成多组结果和表达式
@@ -127,10 +138,18 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-非常尴尬的是，我做test的用时 比 写表达式求值逻辑的用时 还长😅
+## watchpoint
 
-# 二周目
+固定32个可用的watchpoint，用链表分别存储“使用中”、“空闲”队列。
+
+如果设置`w $pc`然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`？是因为在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`吗？
+
+## 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
   就算你是二周目来思考这个问题, 你也有可能是第一次听到"编程模型"这个概念. 不过如果一周目的时候你已经仔细地阅读过ISA手册, 你会记得确实有这么个概念. 所以, 如果想知道什么是编程模型, RTFM吧.
-
+- 1.3 对于GNU/Linux上的一个程序, 怎么样才算开始? 怎么样才算是结束? 对于在NEMU中运行的程序, 问题的答案又是什么呢?
+- 1.4 我们在表达式求值中约定, 所有运算都是无符号运算. 你知道为什么要这样约定吗? 如果进行有符号运算, 有可能会发生什么问题?
+- 1.6 如果你在运行稍大一些的程序(如microbench)的时候使用断点, 你会发现设置断点之后会明显地降低NEMU执行程序的效率. 思考一下这是为什么? 有什么方法解决这个问题吗?
+与此相关的问题还有: NEMU中为什么要有nemu_trap? 为什么要有monitor?
+- 1.6 [How debuggers work](https://eli.thegreenplace.net/2011/01/23/how-debuggers-work-part-1/)
