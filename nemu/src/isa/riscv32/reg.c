@@ -23,10 +23,9 @@ const char *regs[] = {
     "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
 
 void isa_reg_display() {
-  printf("pc        0x%-*x  %d\n", (int)sizeof(vaddr_t) * 2, cpu.pc, cpu.pc);
-  int data_length = sizeof(word_t) * 2;
+  printf("pc        " FMT_WORD "  %d\n", cpu.pc, cpu.pc);
   for (int i = 0; i < ARRLEN(regs); i++) {
-    printf("%-8s  0x%-*x  %d\n", regs[i], data_length, gpr(i), gpr(i));
+    printf("%-8s  " FMT_WORD "  %d\n", regs[i], gpr(i), gpr(i));
   }
 }
 

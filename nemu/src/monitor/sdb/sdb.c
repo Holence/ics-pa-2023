@@ -181,9 +181,9 @@ static int cmd_x(char *args) {
     int i;
     for (i = 0; i < N; i++) {
       if (i % 4 == 0) {
-        printf(ANSI_FMT("0x%8x: ", ANSI_FG_CYAN), base_address);
+        printf(ANSI_FMT(FMT_WORD ": ", ANSI_FG_CYAN), base_address);
       }
-      printf("0x%08x ", vaddr_read(base_address, sizeof(word_t)));
+      printf(FMT_WORD " ", vaddr_read(base_address, sizeof(word_t)));
       base_address += 4;
       if (i % 4 == 3) {
         printf("\n");
@@ -222,7 +222,7 @@ static int cmd_px(char *args) {
   bool success;
   word_t result = expr(args, &success);
   if (success) {
-    printf("0x%08x\n", result);
+    printf(FMT_WORD "\n", result);
   } else {
     printf(ANSI_FMT("Invalid EXPR\n", ANSI_FG_RED));
   }
