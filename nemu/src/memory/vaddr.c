@@ -20,6 +20,7 @@ word_t vaddr_ifetch(vaddr_t addr, int len) {
   return paddr_read(addr, len);
 }
 
+// 这俩函数一模一样❓
 word_t vaddr_read(vaddr_t addr, int len) {
   return paddr_read(addr, len);
 }

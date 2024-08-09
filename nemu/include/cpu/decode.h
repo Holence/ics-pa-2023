@@ -92,11 +92,43 @@ finish:
   pattern_decode(pattern, STRLEN(pattern), &key, &mask, &shift); \
   if ((((uint64_t)INSTPAT_INST(s) >> shift) & mask) == key) { \
     INSTPAT_MATCH(s, ##__VA_ARGS__); \
-    goto *(__instpat_end); \
+    goto *(destination); \
   } \
 } while (0)
 
-#define INSTPAT_START(name) { const void ** __instpat_end = &&concat(__instpat_end_, name);
-#define INSTPAT_END(name)   concat(__instpat_end_, name): ; }
+#define INSTPAT_START(name) { const void ** destination = &&concat(destination_label_, name);
+#define INSTPAT_END(name)   concat(destination_label_, name): ; }
+
+// { const void **destination = &&destination_label_ ;; // INSTPAT_START(); 的展开，为了提前确定destination的地址
+//
+//   do {
+//     uint64_t key, mask, shift;
+//     pattern_decode("??????? ????? ????? ??? ????? 00101 11",
+//                     (sizeof("??????? ????? ????? ??? ????? 00101 11") - 1),
+//                     &key, &mask, &shift);
+//     if ((((uint64_t)((s)->isa.inst.val) >> shift) & mask) == key) {
+//       {
+//         decode_operand(s, &rd, &src1, &src2, &imm, TYPE_U);
+//         (cpu.gpr[check_reg_idx(rd)]) = s->pc + imm;
+//       };
+//       goto *(destination); // 跳
+//     }
+//   } while (0);
+//
+//   do {
+//     uint64_t key, mask, shift;
+//     pattern_decode("??????? ????? ????? 100 ????? 00000 11",
+//                     (sizeof("??????? ????? ????? 100 ????? 00000 11") - 1),
+//                     &key, &mask, &shift);
+//     if ((((uint64_t)((s)->isa.inst.val) >> shift) & mask) == key) {
+//       {
+//         decode_operand(s, &rd, &src1, &src2, &imm, TYPE_I);
+//         (cpu.gpr[check_reg_idx(rd)]) = vaddr_read(src1 + imm, 1);
+//       };
+//       goto *(destination); // 跳
+//     }
+//   } while (0);
+// 
+// destination_label_ : ; }; // INSTPAT_END(); 的展开，就是在设定需要goto的`label:`
 
 #endif

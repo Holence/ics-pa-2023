@@ -43,6 +43,22 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 }
 ```
 
+## make
+
+```make
+# ./nemu/scripts/build.mk
+$(OBJ_DIR)/%.o: %.c
+	@echo + CC $<
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) -c -o $@ $<
+	
+	# gcc preprocessing file, 方便理解那些看不懂的宏展开
+	@$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i
+	
+	$(call call_fixdep, $(@:.o=.d), $@)
+	
+```
+
 # PA1
 
 制作简易的调试器（因为硬件都是模拟出来的，打印寄存器、内存也就是打印出数组中的值）。读代码，找到需要调用的函数或需要访问的static变量（应该是需要手动添加include的）。
