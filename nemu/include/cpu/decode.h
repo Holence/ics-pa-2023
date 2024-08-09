@@ -31,6 +31,30 @@ __attribute__((always_inline))
 static inline void pattern_decode(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
+  
+  for (int i = 0; i < 64; i++) {
+    if (i >= len) {
+      break;
+    } else {
+      char c = str[i];
+      if (c != ' ') {
+        Assert(c == '0' || c == '1' || c == '?',
+               "invalid character '%c' in pattern string", c);
+        __key = (__key << 1) | (c == '1' ? 1 : 0);
+        __mask = (__mask << 1) | (c == '?' ? 0 : 1);
+        __shift = (c == '?' ? __shift + 1 : 0);
+      }
+    }
+  }
+  if (64 <= len) {
+    panic("pattern too long");
+  }
+  *key = __key >> __shift;
+  *mask = __mask >> __shift;
+  *shift = __shift;
+
+/*
+// 干啥写宏啊？弄个for循环不是很简单吗？不能理解啊啊❓
 #define macro(i) \
   if ((i) >= len) goto finish; \
   else { \
@@ -57,12 +81,37 @@ finish:
   *key = __key >> __shift;
   *mask = __mask >> __shift;
   *shift = __shift;
+*/
 }
 
 __attribute__((always_inline))
 static inline void pattern_decode_hex(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
+  
+  for (int i = 0; i < 16; i++) {
+    if (i >= len) {
+      break;
+    } else {
+      char c = str[i];
+      if (c != ' ') {
+        Assert((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '?', 
+           "invalid character '%c' in pattern string", c); 
+        __key  = (__key  << 4) | (c == '?' ? 0 : (c >= '0' && c <= '9') ? c - '0' : c - 'a' + 10); 
+        __mask = (__mask << 4) | (c == '?' ? 0 : 0xf); 
+        __shift = (c == '?' ? __shift + 4 : 0); 
+      }
+    }
+  }
+  if (16 <= len) {
+    panic("pattern too long");
+  }
+  *key = __key >> __shift;
+  *mask = __mask >> __shift;
+  *shift = __shift;
+
+/*
+// 干啥写宏啊？弄个for循环不是很简单吗？不能理解啊啊❓
 #define macro(i) \
   if ((i) >= len) goto finish; \
   else { \
@@ -83,6 +132,7 @@ finish:
   *key = __key >> __shift;
   *mask = __mask >> __shift;
   *shift = __shift;
+*/
 }
 
 

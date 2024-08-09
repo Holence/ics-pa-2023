@@ -33,8 +33,7 @@ $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c -o $@ $<
 	
-	# gcc preprocessing file, 方便理解那些看不懂的宏展开
-	# @$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i
+	@$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i # gcc preprocessing file, 方便理解那些看不懂的宏展开
 	
 	$(call call_fixdep, $(@:.o=.d), $@)
 
