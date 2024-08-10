@@ -49,19 +49,23 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
 
   switch (type) {
   case TYPE_I:
-    *imm = SIGNED_EXTEND(BITS(i, 31, 20), 12);
+    *imm = BITS(i, 31, 20);
+    *imm = SIGN_EXTEND(*imm, 12);
     break;
   case TYPE_S:
-    *imm = (SIGNED_EXTEND(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7);
+    *imm = (BITS(i, 31, 25) << 5) | BITS(i, 11, 7);
+    *imm = SIGN_EXTEND(*imm, 12);
     break;
   case TYPE_B:
     //
     break;
   case TYPE_U:
-    *imm = SIGNED_EXTEND(BITS(i, 31, 12), 20) << 12;
+    *imm = BITS(i, 31, 12) << 12;
+    *imm = SIGN_EXTEND(*imm, 32);
     break;
   case TYPE_J:
     *imm = (BITS(i, 31, 31) << 20) | (BITS(i, 19, 12) << 12) | (BITS(i, 20, 20) << 11) | (BITS(i, 30, 21) << 1) | 0;
+    *imm = SIGN_EXTEND(*imm, 21);
     break;
   }
 }
@@ -80,6 +84,9 @@ static int decode_exec(Decode *s) {
 #define INSTPAT_MATCH(s, useless_op_name, type, EXECUTE_EXPR)        \
   {                                                                  \
     decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
+    printf(FMT_WORD "\n", s->pc);                                    \
+    printf(FMT_WORD "\n", s->dnpc);                                  \
+    printf(FMT_WORD "\n", imm);                                      \
     EXECUTE_EXPR;                                                    \
   }
 
@@ -92,10 +99,13 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 100 ????? 00000 11", lbu, I, R(rd) = Mr(src1 + imm, 1));
 
   INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb, S, Mw(src1 + imm, 1, src2));
+  INSTPAT("??????? ????? ????? 001 ????? 01000 11", sh, S, Mw(src1 + imm, 2, src2));
+  INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw, S, Mw(src1 + imm, 4, src2));
 
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc, U, R(rd) = s->pc + imm);
 
   INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal, J, R(rd) = s->pc + 4; s->dnpc = s->pc + imm);
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr, I, R(rd) = s->pc + 4; s->dnpc = src1 + imm);
 
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
 
@@ -104,7 +114,7 @@ static int decode_exec(Decode *s) {
   INSTPAT_END();
 
   R(0) = 0; // reset $zero to 0
-
+  printf("After: " FMT_WORD "\n", s->dnpc);
   return 0;
 }
 

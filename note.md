@@ -160,6 +160,16 @@ int main(int argc, char *argv[]) {
 
 如果设置`w $pc`然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`？是因为在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`吗？
 
+# PA2
+
+指令集见《The RISC-V Instruction Set Manual Volume I Unprivileged Architecture》 Instruction Set Listings
+
+UCB的green card其实也都够用了
+
+imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
+
+load也要sign-extend
+
 ## 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
