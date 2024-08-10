@@ -36,9 +36,9 @@ enum {
   do {             \
     *src2 = R(rt); \
   } while (0)
-#define immI()                       \
-  do {                               \
-    *imm = SEXT(BITS(i, 15, 0), 16); \
+#define immI()                                \
+  do {                                        \
+    *imm = SIGNED_EXTEND(BITS(i, 15, 0), 16); \
   } while (0)
 #define immU()             \
   do {                     \

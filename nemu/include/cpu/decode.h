@@ -30,6 +30,13 @@ typedef struct Decode {
 __attribute__((always_inline))
 static inline void pattern_decode(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
+  /*
+    "??????? ????? ????? ??? ????? 00101 11"
+    key   = 0x17 = 001 0111; 所有的1保留为1,所有的?和0变成0
+    mask  = 0x7f = 111 1111; 所有的0和1保留为1,所以的?变成0
+    shift = 0; 最右边的?个数，如果shift>0，那么key和mask都要右移shift
+  */
+
   uint64_t __key = 0, __mask = 0, __shift = 0;
   
   for (int i = 0; i < 64; i++) {

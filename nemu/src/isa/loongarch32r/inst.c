@@ -32,13 +32,13 @@ enum {
   do {             \
     *src1 = R(rj); \
   } while (0)
-#define simm12()                      \
-  do {                                \
-    *imm = SEXT(BITS(i, 21, 10), 12); \
+#define simm12()                               \
+  do {                                         \
+    *imm = SIGNED_EXTEND(BITS(i, 21, 10), 12); \
   } while (0)
-#define simm20()                           \
-  do {                                     \
-    *imm = SEXT(BITS(i, 24, 5), 20) << 12; \
+#define simm20()                                    \
+  do {                                              \
+    *imm = SIGNED_EXTEND(BITS(i, 24, 5), 20) << 12; \
   } while (0)
 
 static void decode_operand(Decode *s, int *rd_, word_t *src1, word_t *src2, word_t *imm, int type) {
