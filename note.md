@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-## watchpoint
+## 监视点
 
 固定32个可用的watchpoint，用链表分别存储“使用中”、“空闲”队列。
 
@@ -162,13 +162,16 @@ int main(int argc, char *argv[]) {
 
 # PA2
 
-指令集见《The RISC-V Instruction Set Manual Volume I Unprivileged Architecture》 Instruction Set Listings
+## 2.2 RTFM & RTFSC
 
-UCB的green card其实也都够用了
+编写RISC-V32I_M的模拟器，在外部用risc-v编译器，编译一些c语言写的rics-v机器码用于测试，之后用nemu运行之。
 
-imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
-
-load也要sign-extend
+注意：
+- 指令集见《The RISC-V Instruction Set Manual Volume I Unprivileged Architecture》 Instruction Set Listings，其实UCB的green card也都够用了
+- imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
+- load进来的数据也要sign-extend
+- 做`mul`、`mulh`时需要把`uint32_t`转换为`int64_t`去做乘法。但由于bit extend的特性，从`uint32_t`到更多位的`int64_t`需要先到`int32_t`再到`int64_t`，这样才能让32位的负数正确地sign-extend扩展为64位的负数。
+- string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
 ## 二周目问题
 
