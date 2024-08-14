@@ -45,19 +45,7 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 
 ## make
 
-```make
-# ./nemu/scripts/build.mk
-$(OBJ_DIR)/%.o: %.c
-	@echo + CC $<
-	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c -o $@ $<
-	
-	# gcc preprocessing file, 方便理解那些看不懂的宏展开
-	@$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i
-	
-	$(call call_fixdep, $(@:.o=.d), $@)
-	
-```
+虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了。所以最好一开始就掌握make的语法，教程：[Makefile Tutorial By Example](https://makefiletutorial.com)、[官方手册](https://www.gnu.org/software/make/manual/make.html)。
 
 # PA1
 
@@ -71,6 +59,25 @@ $(OBJ_DIR)/%.o: %.c
 0x00000297
 (nemu) px *($pc+4*4)
 0xdeadbeef
+```
+
+## RTFSC
+
+大致就是通过`make menuconfig`运行kconfig工具在terminal的图形化界面中进行个性化配置，产生的`include/config/auto.conf`将会用于`make`的个性化编译，产生的`include/generated/autoconf.h`将会用于c语言代码中的`#ifdef`。
+
+对于那些看不懂的宏定义，可以在makefile中加入一行，让输出预编译的代码（出自[第5课的PPT](http://why.ink:8080/static/slides/ICS2023/05.pdf)）
+
+```make
+# ./nemu/scripts/build.mk
+$(OBJ_DIR)/%.o: %.c
+	@echo + CC $<
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) -c -o $@ $<
+	
+	# gcc preprocessing file, 方便理解那些看不懂的宏展开
+	@$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i
+	
+	$(call call_fixdep, $(@:.o=.d), $@)
 ```
 
 ## 表达式求值
@@ -182,3 +189,7 @@ int main(int argc, char *argv[]) {
 - 1.6 如果你在运行稍大一些的程序(如microbench)的时候使用断点, 你会发现设置断点之后会明显地降低NEMU执行程序的效率. 思考一下这是为什么? 有什么方法解决这个问题吗?
 与此相关的问题还有: NEMU中为什么要有nemu_trap? 为什么要有monitor?
 - 1.6 [How debuggers work](https://eli.thegreenplace.net/2011/01/23/how-debuggers-work-part-1/)
+- 2.3 为什么要有AM？操作系统也有自己的运行时环境. AM和操作系统提供的运行时环境有什么不同呢? 为什么会有这些不同?
+
+TODO:
+- nemu从0开始运行的每一步干了啥在
