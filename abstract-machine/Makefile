@@ -13,7 +13,9 @@ ifeq ($(MAKECMDGOALS),)
   .DEFAULT_GOAL = image
 endif
 
+################# if start #################
 ### Override checks when `make clean/clean-all/html`
+# if MAKECMDGOALS is not clean|clean-all|html
 ifeq ($(findstring $(MAKECMDGOALS),clean|clean-all|html),)
 
 ### Print build info message
@@ -25,6 +27,7 @@ ifeq ($(wildcard $(AM_HOME)/am/include/am.h),)
 endif
 
 ### Check: environment variable `$ARCH` must be in the supported list
+# 咋运行make的❓ cd am; make ARCH=riscv32-nemu ❓
 ARCHS = $(basename $(notdir $(shell ls $(AM_HOME)/scripts/*.mk)))
 ifeq ($(filter $(ARCHS), $(ARCH)), )
   $(error Expected $$ARCH in {$(ARCHS)}, Got "$(ARCH)")
@@ -42,22 +45,40 @@ endif
 
 ### Checks end here
 endif
+################# if end #################
 
 ## 2. General Compilation Targets
 
-### Create the destination directory (`build/$ARCH`)
-WORK_DIR  = $(shell pwd)
-DST_DIR   = $(WORK_DIR)/build/$(ARCH)
+### Create the destination directory (`/am/build/$ARCH`)
+WORK_DIR  = $(shell pwd)# /am
+DST_DIR   = $(WORK_DIR)/build/$(ARCH)# /am/build/$ARCH
 $(shell mkdir -p $(DST_DIR))
 
 ### Compilation targets (a binary image or archive)
-IMAGE_REL = build/$(NAME)-$(ARCH)
+IMAGE_REL = $(WORK_DIR)/build/$(NAME)-$(ARCH)
 IMAGE     = $(abspath $(IMAGE_REL))
 ARCHIVE   = $(WORK_DIR)/build/$(NAME)-$(ARCH).a
 
 ### Collect the files to be linked: object files (`.o`) and libraries (`.a`)
+# 保留/am/src里的代码文件结构，将.o文件也按这种结构存在/am/build/$ARCH/src中
 OBJS      = $(addprefix $(DST_DIR)/, $(addsuffix .o, $(basename $(SRCS))))
 LIBS     := $(sort $(LIBS) am klib) # lazy evaluation ("=") causes infinite recursions
+
+# LINKAGE = 
+# /am/build/riscv32-nemu/src/platform/nemu/trm.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/ioe.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/timer.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/input.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/gpu.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/audio.o
+# /am/build/riscv32-nemu/src/platform/nemu/ioe/disk.o
+# /am/build/riscv32-nemu/src/platform/nemu/mpe.o
+# /am/build/riscv32-nemu/src/riscv/nemu/start.o
+# /am/build/riscv32-nemu/src/riscv/nemu/cte.o
+# /am/build/riscv32-nemu/src/riscv/nemu/trap.o
+# /am/build/riscv32-nemu/src/riscv/nemu/vme.o
+# /am/build/am-riscv32-nemu.a
+# /klib/build/klib-riscv32-nemu.a
 LINKAGE   = $(OBJS) \
   $(addsuffix -$(ARCH).a, $(join \
     $(addsuffix /build/, $(addprefix $(AM_HOME)/, $(LIBS))), \
@@ -125,6 +146,8 @@ $(DST_DIR)/%.o: %.S
 	@$(AS) $(ASFLAGS) -c -o $@ $(realpath $<)
 
 ### Rule (recursive make): build a dependent library (am, klib, ...)
+### cd abstract-machine/am and run make archive
+### cd abstract-machine/klib and run make archive
 $(LIBS): %:
 	@$(MAKE) -s -C $(AM_HOME)/$* archive
 
