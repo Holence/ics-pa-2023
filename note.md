@@ -178,7 +178,22 @@ int main(int argc, char *argv[]) {
 - imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
 - load进来的数据也要sign-extend
 - 做`mul`、`mulh`时需要把`uint32_t`转换为`int64_t`去做乘法。但由于bit extend的特性，从`uint32_t`到更多位的`int64_t`需要先到`int32_t`再到`int64_t`，这样才能让32位的负数正确地sign-extend扩展为64位的负数。
+
+运行am-kernels中测试的时候，`make ARCH=$riscv32-nemu ALL=dummy run`会生成`Makefile.dummy`，其中的内容为
+
+```
+NAME = dummy
+SRCS = tests/dummy.c
+include /abstract-machine/Makefile
+```
+
+接下来会`make -s -f Makefile.dummy ARCH=$(ARCH) $(MAKECMDGOALS)`去运行这个Makefile，其实都是在引用`/abstract-machine/Makefile`中的内容（PA2.3中会要求仔细阅读），其中编译生成nemu需要的程序文件IMAGE（.bin），再通过`$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin`运行nemu中Makefile的`make run`。
+
+为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=$riscv32-nemu run`就能运行所有的测试了。
+
 - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
+
+❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNA`的错。
 
 ## 二周目问题
 
