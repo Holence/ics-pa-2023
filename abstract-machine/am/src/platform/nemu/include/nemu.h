@@ -10,7 +10,10 @@
 # define nemu_trap(code) asm volatile ("int3" : :"a"(code))
 #elif defined(__ISA_MIPS32__)
 # define nemu_trap(code) asm volatile ("move $v0, %0; sdbbp" : :"r"(code))
-#elif defined(__riscv)
+#elif defined(__riscv) // ❓我看make里也没有-D__riscv的东西啊？这个在哪里定义的？？
+// code is a numeric value to be put into a gpr (general purpose register), which will be automatic selected by gcc in compile time
+// then it will move this value from this gpr to a0 register
+// then ebreak
 # define nemu_trap(code) asm volatile("mv a0, %0; ebreak" : :"r"(code))
 #elif defined(__ISA_LOONGARCH32R__)
 # define nemu_trap(code) asm volatile("move $a0, %0; break 0" : :"r"(code))
