@@ -215,6 +215,17 @@ void _trm_init() {
 
 ❓nemu相当于是一个可以一次性执行完一段程序最后返回一个return值的cpu，仅仅是一个图灵机，运行完就结束了。而我们想要的是更强大的能与外界交互的机器，运行完还能根据外界的反馈再次运行❓那么am就需要根据nemu返回的值来做相应的处理，这是在模拟中断？
 
+❓用riscv64-linux-gnu-gcc的输出也能说明这点
+
+```bash
+cd /am-kernels/tests/cpu-tests
+# 仅仅编译单个文件到汇编
+riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s # 发现里面没有ebreak
+# 编译整个可执行文件
+riscv64-linux-gnu-gcc tests/dummy.c -o dummy
+riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
+```
+
 ## 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
