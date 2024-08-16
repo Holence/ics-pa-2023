@@ -165,7 +165,13 @@ int main(int argc, char *argv[]) {
 
 固定32个可用的watchpoint，用链表分别存储“使用中”、“空闲”队列。
 
-如果设置`w $pc`然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`？是因为在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`吗？
+如果设置`w $pc`然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`，说明是明明已经到最后了，却没退出成功。退出的时候是`ebreak`指令在`set_nemu_state(NEMU_END, thispc, code)`，可以在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`时，弄个判断：
+
+```c
+if (nemu_state.state != NEMU_END) {
+  nemu_state.state = NEMU_STOP;
+}
+```
 
 # PA2
 
@@ -195,7 +201,7 @@ include /abstract-machine/Makefile
 
 - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
-❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNA`的错。
+❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNAL`的错。
 
 # 2.3
 

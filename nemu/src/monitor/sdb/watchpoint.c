@@ -116,7 +116,9 @@ void wp_check_changed() {
     if (result != ptr->old_value) {
       printf("Watchpoint %d: %s\n\nOld value = " FMT_WORD "\nNew value = " FMT_WORD "\n\n", ptr->NO, ptr->expr_, ptr->old_value, result);
       ptr->old_value = result;
-      nemu_state.state = NEMU_STOP;
+      if (nemu_state.state != NEMU_END) {
+        nemu_state.state = NEMU_STOP;
+      }
     }
     ptr = ptr->next;
   }
