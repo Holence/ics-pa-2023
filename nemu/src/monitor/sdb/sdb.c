@@ -34,7 +34,7 @@ static char *rl_gets() {
     line_read = NULL;
   }
 
-  line_read = readline("(nemu) ");
+  line_read = readline(ANSI_FMT("(nemu) ", ANSI_FG_MAGENTA));
 
   if (line_read && *line_read) {
     add_history(line_read);
@@ -183,7 +183,17 @@ static int cmd_x(char *args) {
       if (i % 4 == 0) {
         printf(ANSI_FMT(FMT_WORD ": ", ANSI_FG_CYAN), base_address);
       }
-      printf(FMT_WORD " ", vaddr_read(base_address, sizeof(word_t)));
+      word_t result = vaddr_read(base_address, sizeof(word_t));
+      printf(FMT_WORD " ", result);
+
+      // print char of each bytes
+      printf("(");
+      for (int i = 0; i < 4; i++) {
+        printf("%c", (uint8_t)BITS(result, i * 8 + 7, i * 8));
+      }
+      printf(") ");
+      // print char of each bytes
+
       base_address += 4;
       if (i % 4 == 3) {
         printf("\n");
