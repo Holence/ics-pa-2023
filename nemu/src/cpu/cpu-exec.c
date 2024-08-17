@@ -34,12 +34,18 @@ static bool g_print_step = false;
 void device_update();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
-  // 这是啥，看不懂❓
+
+#ifdef CONFIG_ITRACE
+  // itrace
+  itrace(_this);
+#endif
+
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) {
     log_write("%s\n", _this->logbuf);
   }
 #endif
+
   if (g_print_step) {
     IFDEF(CONFIG_ITRACE, puts(_this->logbuf));
   }
@@ -49,19 +55,21 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   wp_check_changed();
 }
 
-static void exec_once(Decode *s, vaddr_t pc) {
-  s->pc = pc;
-  s->snpc = pc;
-  isa_exec_once(s);
-  cpu.pc = s->dnpc;
 #ifdef CONFIG_ITRACE
+static void itrace(Decode *s) {
+  // instruction trace
+  // 会在nemu-log.txt中输出形状如下的指令记录（先记录在s->logbuf中，之后在trace_and_difftest中在通过ITRACE_COND判断log_write）
+  // 0x80000000: 00 00 02 97 auipc	t0, 0
+  // 0x80000004: 00 02 88 23 sb	zero, 16(t0)
+  // 0x80000008: 01 02 c5 03 lbu	a0, 16(t0)
+  // 0x8000000c: 00 10 00 73 ebreak
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
-  int ilen = s->snpc - s->pc;
+  int ilen = s->snpc - s->pc; // 4, 单条指令字节数
   int i;
-  uint8_t *inst = (uint8_t *)&s->isa.inst.val;
+  uint8_t *byte_ptr = (uint8_t *)&s->isa.inst.val;
   for (i = ilen - 1; i >= 0; i--) {
-    p += snprintf(p, 4, " %02x", inst[i]);
+    p += snprintf(p, 4, " %02x", byte_ptr[i]);
   }
   int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
   int space_len = ilen_max - ilen;
@@ -71,6 +79,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   memset(p, ' ', space_len);
   p += space_len;
 
+// 反汇编，从机器码解析出汇编，具体原理不懂，llvm是啥❓
 #ifndef CONFIG_ISA_loongarch32r
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
@@ -78,7 +87,18 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #else
   p[0] = '\0'; // the upstream llvm does not support loongarch32r
 #endif
+}
 #endif
+
+static void exec_once(Decode *s, vaddr_t pc) {
+  s->pc = pc;
+  s->snpc = pc;
+  isa_exec_once(s);
+  // isa_exec_once完事后
+  // s->pc是当前指令的地址
+  // s->snpc在isa_exec_once()中被inst_fetch()加了4
+  // s->dnpc是下一跳的地址
+  cpu.pc = s->dnpc;
 }
 
 static void execute(uint64_t n) {
@@ -135,6 +155,8 @@ void cpu_exec(uint64_t n) {
 
   case NEMU_END:
   case NEMU_ABORT:
+    // 出错: invalid_inst 或者 nemu_state.halt_ret!=0
+
     Log("nemu: %s at pc = " FMT_WORD,
         (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) : (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) : ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
         nemu_state.halt_pc);
