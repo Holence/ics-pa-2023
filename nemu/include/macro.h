@@ -93,8 +93,8 @@
 #define PG_ALIGN __attribute((aligned(4096)))
 
 #if !defined(likely)
-#define likely(cond) __builtin_expect(cond, 1)
-#define unlikely(cond) __builtin_expect(cond, 0)
+#define likely(cond) __builtin_expect(cond, 1)   // 大概率是第一个分支
+#define unlikely(cond) __builtin_expect(cond, 0) // 大概率时第二个分支，编译优化出来第二个分支可能就放在第一个分支前
 #endif
 
 // for AM IOE
