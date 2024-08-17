@@ -68,6 +68,7 @@ static void itrace(Decode *s) {
 }
 #endif
 
+#ifdef CONFIG_IRINGBUG_TRACE
 #define IRINGBUF_SIZE 16
 static char iringbuf[IRINGBUF_SIZE][128];
 static int iringbuf_index = 0;
@@ -75,6 +76,24 @@ static void iringbuf_trace(char *logbuf) {
   strcpy(iringbuf[iringbuf_index], logbuf);
   iringbuf_index = (iringbuf_index + 1) % IRINGBUF_SIZE;
 }
+
+static void print_iringbug_log() {
+  printf(ANSI_FMT("#################### iringbuf ####################\n", ANSI_FG_RED));
+  int index = iringbuf_index;
+  int index_end = iringbuf_index == 0 ? IRINGBUF_SIZE - 1 : iringbuf_index - 1;
+  while (true) {
+    if (strlen(iringbuf[index]) != 0) {
+      printf(ANSI_FMT("%s\n", ANSI_FG_RED), iringbuf[index]);
+    }
+    if (index != index_end) {
+      index = (index + 1) % IRINGBUF_SIZE;
+    } else {
+      break;
+    }
+  }
+  printf(ANSI_FMT("##################################################\n", ANSI_FG_RED));
+}
+#endif
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE
@@ -89,8 +108,10 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   }
 #endif
 
-  // iringbuf
+#ifdef CONFIG_IRINGBUG_TRACE
+  // record iringbuf
   iringbuf_trace(_this->logbuf);
+#endif
 
   // print to stdout
   if (g_print_step) {
@@ -169,23 +190,12 @@ void cpu_exec(uint64_t n) {
   case NEMU_END:
   case NEMU_ABORT:
 
+#ifdef CONFIG_IRINGBUG_TRACE
     // 出错: invalid_inst 或者 nemu_state.halt_ret!=0时 在stdout输出iringbuf
     if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) {
-      printf(ANSI_FMT("#################### iringbuf ####################\n", ANSI_FG_RED));
-      int index = iringbuf_index;
-      int index_end = iringbuf_index == 0 ? IRINGBUF_SIZE - 1 : iringbuf_index - 1;
-      while (true) {
-        if (strlen(iringbuf[index]) != 0) {
-          printf(ANSI_FMT("%s\n", ANSI_FG_RED), iringbuf[index]);
-        }
-        if (index != index_end) {
-          index = (index + 1) % IRINGBUF_SIZE;
-        } else {
-          break;
-        }
-      }
-      printf(ANSI_FMT("##################################################\n", ANSI_FG_RED));
+      print_iringbug_log();
     }
+#endif
 
     Log("nemu: %s at pc = " FMT_WORD,
         (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) : (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) : ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
