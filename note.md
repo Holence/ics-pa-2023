@@ -187,6 +187,14 @@ if (nemu_state.state != NEMU_END) {
 
 ❓ecall要做吗？
 
+为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
+
+- string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
+
+❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNAL`的错。
+
+## Makefile解析
+
 运行am-kernels中测试的时候，`make ARCH=riscv32-nemu ALL=dummy run`会生成`Makefile.dummy`，其中的内容为
 
 ```
@@ -195,13 +203,15 @@ SRCS = tests/dummy.c
 include /abstract-machine/Makefile
 ```
 
-接下来会`make -s -f Makefile.dummy ARCH=$(ARCH) $(MAKECMDGOALS)`去运行这个Makefile，其实都是在引用`/abstract-machine/Makefile`中的内容（PA2.3中会要求仔细阅读），其中编译生成nemu需要的程序文件IMAGE（.bin），再通过`$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin`运行nemu中Makefile的`make run`。
+接下来会`make -s -f Makefile.dummy ARCH=$(ARCH) $(MAKECMDGOALS)`去运行这个Makefile，其实都是在引用`/abstract-machine/Makefile`中的内容（PA2.3中会要求仔细阅读），其中先编译生成一堆OBJS，再`@$(LD) $(LDFLAGS) -o $(IMAGE).elf --start-group $(LINKAGE) --end-group`链接成ELF文件，最后用`@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin`抽取出部分内容成为裸二进制文件（到底提取了哪些部分❓），这是nemu需要的程序文件IMAGE（.bin），最后通过`$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin`运行nemu中Makefile的`make run`。
 
-为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
+# ELF
 
-- string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
+2.4中要解析ELF中的symtab，需要大致了解下elf是啥：[Introduction to the ELF Format](https://blog.k3170makan.com/2018/09/introduction-to-elf-format-elf-header.html)
 
-❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNAL`的错。
+elf (Executable and Linkable Format)是linux中通用的，PE (Portable Executable) 是Windows的，都在程序段之外记载了很多其他信息，
+
+如果想弄出raw bin，`objcopy -O binary`❓
 
 # 2.3
 
@@ -225,6 +235,14 @@ riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s # 发现里面没有ebreak
 riscv64-linux-gnu-gcc tests/dummy.c -o dummy
 riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
 ```
+
+# 2.4
+
+itrace、iringbuf、mtrace就在nemu里动动手脚即可。
+
+ftrace需要读取elf
+
+不匹配的函数调用和返回，尝试结合反汇编结果, 分析为什么会出现这一现象：看到反汇编中f0和f1中是ja，说明这俩不会被ret跳回，而f2和f3中是jalr（待看自己ftrace的结果❓），ret都跳回这俩了。而ftrace是在返回的NAME有变化时打印函数名，
 
 ## 二周目问题
 
