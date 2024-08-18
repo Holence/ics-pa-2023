@@ -6,9 +6,8 @@
 
 size_t strlen(const char *s) {
   size_t len = 0;
-  while (*s != '\0') {
+  while (s[len] != '\0') {
     len++;
-    s++;
   }
   return len;
 }
@@ -25,12 +24,15 @@ char *strcpy(char *dst, const char *src) {
   return dst;
 }
 
-char *strncpy(char *dst, const char *src, size_t n) {
-  size_t len = strlen(dst);
-  size_t copy_len = strnlen(src, n);
+/**
+ * num > len(src), pad zero to total of num
+ * num < len(src), do not add \0 in the end
+ */
+char *strncpy(char *dst, const char *src, size_t num) {
+  size_t copy_len = strnlen(src, num);
   memcpy(dst, src, copy_len);
-  if (copy_len < len) {
-    memset(dst + copy_len, 0, len - copy_len);
+  if (copy_len < num) {
+    memset(dst + copy_len, 0, num - copy_len);
   }
   return dst;
 }
