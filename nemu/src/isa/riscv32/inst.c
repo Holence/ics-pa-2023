@@ -18,6 +18,8 @@
 #include <cpu/decode.h>
 #include <cpu/ifetch.h>
 
+void ftrace_log(vaddr_t address, bool jump_in);
+
 #define R(i) gpr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
@@ -32,6 +34,7 @@ enum {
   TYPE_N, // none
 };
 
+static int rs1, rs2;
 /*
   根据TYPE
   解析寄存器rs1和rs2，读出值，存到src1和src2中
@@ -41,8 +44,8 @@ enum {
 static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
   uint32_t i = s->isa.inst.val;
 
-  int rs1 = BITS(i, 19, 15);
-  int rs2 = BITS(i, 24, 20);
+  rs1 = BITS(i, 19, 15);
+  rs2 = BITS(i, 24, 20);
   *src1 = R(rs1);
   *src2 = R(rs2);
   *rd = BITS(i, 11, 7);
@@ -155,13 +158,25 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc, U, R(rd) = s->pc + imm);
 
   // J
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal, J, R(rd) = s->pc + 4; s->dnpc = s->pc + imm);
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal, J, R(rd) = s->pc + 4; s->dnpc = s->pc + imm;
+#ifdef CONFIG_FTRACE
+          // Call: jal ra, imm (rd==ra)
+          if (rd == 1) { ftrace_log(s->dnpc, true); } // 传入的是跳进哪儿的地址
+#endif
+  );
 
   // Other
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr, I, R(rd) = s->pc + 4; s->dnpc = src1 + imm);
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr, I, R(rd) = s->pc + 4; s->dnpc = src1 + imm;
+#ifdef CONFIG_FTRACE
+          // Call: jalr ra, rs1, imm (rd==ra)
+          if (rd == 1) { ftrace_log(s->dnpc, true); } // 传入的是跳进哪儿的地址
+          // Return: ret == jalr x0, ra, 0 (rs1==ra)
+          if (rs1 == 1) { ftrace_log(s->pc, false); } // 传入的是从哪儿返回的地址
+#endif
+  );
 
-  // INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall, N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0 TODO
-  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0 TODO
+  // INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall, N, NEMUTRAP(s->pc, R(10))); // ebreak??
+  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
 
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv, N, INV(s->pc));
 

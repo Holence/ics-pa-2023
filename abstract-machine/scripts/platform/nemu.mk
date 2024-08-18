@@ -20,10 +20,18 @@ CFLAGS += -I$(AM_HOME)/am/src/platform/nemu/include
 image: $(IMAGE).elf
 	@$(OBJDUMP) -d $(IMAGE).elf > $(IMAGE).txt
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
-	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
+
+# -S (--strip-all)
+#    Do not copy relocation and symbol information from the source file.  Also deletes debug sections.
+# -S之后只是少了些附加信息，依旧可以被linux运行、被readelf、被objdump
+# -O binary 是保留raw binary file，不能被linux运行、被readelf、被objdump
+    @$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
 run: image
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin
+
+run_ftrace: image
+	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="-e $(IMAGE).elf $(NEMUFLAGS)" IMG=$(IMAGE).bin
 
 run_batch: image
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="-b $(NEMUFLAGS)" IMG=$(IMAGE).bin

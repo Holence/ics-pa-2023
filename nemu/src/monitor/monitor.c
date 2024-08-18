@@ -20,6 +20,7 @@ void init_rand();
 void init_log(const char *log_file);
 void init_mem();
 void init_difftest(char *ref_so_file, long img_size, int port);
+void init_ftrace(char *elf_file);
 void init_device();
 void init_sdb();
 void init_disasm(const char *triple);
@@ -43,6 +44,7 @@ void sdb_set_batch_mode();
 static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
+static char *elf_file = NULL;
 static int difftest_port = 1234;
 
 static long load_img() {
@@ -74,10 +76,13 @@ static int parse_args(int argc, char *argv[]) {
       {"diff", required_argument, NULL, 'd'},
       {"port", required_argument, NULL, 'p'},
       {"help", no_argument, NULL, 'h'},
+#ifdef CONFIG_FTRACE
+      {"elf", required_argument, NULL, 'e'},
+#endif
       {0, 0, NULL, 0},
   };
   int o;
-  while ((o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
+  while ((o = getopt_long(argc, argv, "-bhl:d:p:e:", table, NULL)) != -1) {
     switch (o) {
     case 'b':
       sdb_set_batch_mode();
@@ -91,6 +96,11 @@ static int parse_args(int argc, char *argv[]) {
     case 'd':
       diff_so_file = optarg;
       break;
+#ifdef CONFIG_FTRACE
+    case 'e':
+      elf_file = optarg;
+      break;
+#endif
     case 1:
       img_file = optarg;
       return 0;
@@ -100,6 +110,9 @@ static int parse_args(int argc, char *argv[]) {
       printf("\t-l,--log=FILE           output log to FILE\n");
       printf("\t-d,--diff=REF_SO        run DiffTest with reference REF_SO\n");
       printf("\t-p,--port=PORT          run DiffTest with port PORT\n");
+#ifdef CONFIG_FTRACE
+      printf("\t-e,--elf=ELF_FILE          load ELF_File to ftrace\n");
+#endif
       printf("\n");
       exit(0);
     }
@@ -133,6 +146,11 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);
+
+#ifdef CONFIG_FTRACE
+  /* Initialize ftrace. */
+  init_ftrace(elf_file);
+#endif
 
   /* Initialize the simple debugger. */
   init_sdb();

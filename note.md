@@ -43,9 +43,11 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 }
 ```
 
-## make
+## （需要补习的）前置知识
 
-虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了。所以最好一开始就掌握make的语法，教程：[Makefile Tutorial By Example](https://makefiletutorial.com)、[官方手册](https://www.gnu.org/software/make/manual/make.html)。
+- RISC-V：学过CS61C就够用了
+- Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
+- ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[]()
 
 # PA1
 
@@ -67,14 +69,14 @@ gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/ri
 
 对于那些看不懂的宏定义，可以在makefile中加入一行，让输出预编译的代码（出自[第5课的PPT](http://why.ink:8080/static/slides/ICS2023/05.pdf)）
 
-```make
+```makefile
 # ./nemu/scripts/build.mk
 $(OBJ_DIR)/%.o: %.c
 	@echo + CC $<
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c -o $@ $<
 	
-	# gcc preprocessing file, 方便理解那些看不懂的宏展开
+# gcc preprocessing file, 方便理解那些看不懂的宏展开
 	@$(CC) $(CFLAGS) -E -MF /dev/null $< | grep -ve '^#' | clang-format - > $(basename $@).i
 	
 	$(call call_fixdep, $(@:.o=.d), $@)
@@ -203,17 +205,23 @@ SRCS = tests/dummy.c
 include /abstract-machine/Makefile
 ```
 
-接下来会`make -s -f Makefile.dummy ARCH=$(ARCH) $(MAKECMDGOALS)`去运行这个Makefile，其实都是在引用`/abstract-machine/Makefile`中的内容（PA2.3中会要求仔细阅读），其中先编译生成一堆OBJS，再`@$(LD) $(LDFLAGS) -o $(IMAGE).elf --start-group $(LINKAGE) --end-group`链接成ELF文件，最后用`@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin`抽取出部分内容成为裸二进制文件（到底提取了哪些部分❓），这是nemu需要的程序文件IMAGE（.bin），最后通过`$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin`运行nemu中Makefile的`make run`。
+接下来会`make -s -f Makefile.dummy ARCH=$(ARCH) $(MAKECMDGOALS)`去运行这个Makefile，其实就是在引用`/abstract-machine/Makefile`中的内容（PA2.3中会要求仔细阅读），其中先编译生成一堆OBJS，再`@$(LD) $(LDFLAGS) -o $(IMAGE).elf --start-group $(LINKAGE) --end-group`链接成ELF文件，最后用`@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin`抽取出部分内容成为裸二进制文件，这是nemu需要的程序文件IMAGE（.bin），最后通过`$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin`运行nemu中Makefile的`make run`。
 
-# ELF
+```makefile
+image: $(IMAGE).elf
+	@$(OBJDUMP) -d $(IMAGE).elf > $(IMAGE).txt
+	@echo + OBJCOPY "->" $(IMAGE_REL).bin
 
-2.4中要解析ELF中的symtab，需要大致了解下elf是啥：[Introduction to the ELF Format](https://blog.k3170makan.com/2018/09/introduction-to-elf-format-elf-header.html)
+# -S (--strip-all)
+#    Do not copy relocation and symbol information from the source file.  Also deletes debug sections.
+# -S之后只是少了些附加信息，依旧可以被linux运行、被readelf、被objdump
+# -O binary 是保留raw binary file，不能被linux运行、被readelf、被objdump
+    @$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
+```
 
-elf (Executable and Linkable Format)是linux中通用的，PE (Portable Executable) 是Windows的，都在程序段之外记载了很多其他信息，
+## 2.3
 
-如果想弄出raw bin，`objcopy -O binary`❓
-
-# 2.3
+实现几个与ISA无关的通用库函数，理解abstract machine作为nemu(cpu)与OS之间的中间层的奥义。
 
 ```
 // trm.c
@@ -236,15 +244,40 @@ riscv64-linux-gnu-gcc tests/dummy.c -o dummy
 riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
 ```
 
-# 2.4
+## 2.4
 
 itrace、iringbuf、mtrace就在nemu里动动手脚即可。
 
-ftrace需要读取elf
+ftrace需要读取elf，要找出当前运行的指令行对应在哪个函数内，要找的是Section里的symtab和strtab两个表，symtab中有函数的地址信息，strtab里有所有字符串的信息。所以需要定位到Section Header Table，找到其中symtab和strtab两个表的地址。运行程序时碰到`jalr`和`jal`两个指令，判断是call还是ret，看当前指令的pc位于symtab中哪个function的地址范围内，则查找到strtab中该函数的名字。
 
-不匹配的函数调用和返回，尝试结合反汇编结果, 分析为什么会出现这一现象：看到反汇编中f0和f1中是ja，说明这俩不会被ret跳回，而f2和f3中是jalr（待看自己ftrace的结果❓），ret都跳回这俩了。而ftrace是在返回的NAME有变化时打印函数名，
+要ftrace的话，运行nemu就需要额外传入elf文件（因为`$(IMAGE).bin`文件是raw binary，啥都没了），在`/abstract-machine/scripts/platform/nemu.mk`中设置运行nemu时要传入的参数`ARGS="-e $(IMAGE).elf $(NEMUFLAGS)"`
 
-## 二周目问题
+ftrace实现出来只是在实时打印全部的函数调用过程，用个int depth记录深度然后打印缩进即可，感觉也没多少机会会用这个功能。若要实现backtrace打印某个时刻的函数调用栈，得用栈的数据结构push、pop记录函数，懒得做了。
+
+---
+
+> 不匹配的函数调用和返回，尝试结合反汇编结果, 分析为什么会出现这一现象：看反汇编代码，在f2中调用f1的是正常的`jalr rs`（`jalr ra, rs, 0`），所以触发打印log`call f1`，而f1跳向f0用的是`jr`（`jalr x0, rs, 0`），也就是不把pc存到`ra`就跳出去，将来不用跳回到这条指令+4的地方，而是直接跳回到f1被调用的地方，也就是f2中调用处+4的地方。`jr`指令因为没有存`ra`，也就没被monitor视为是在call，所以从f1跳入f0的时候并不会触发打印`call f0`，而f0要返回了，ret指令会触发打印`ret f0`，所以就出现了`call f1`接着`ret f0`的现象。
+>
+> 同理，为什么`call f1`对应的是`ret f3`？是因为f0中也是`jr`，`call f1`后隐藏地`call f0`，又隐藏地`call f3`，f3里正常调用f2两次，出来的时候自然打印了`ret f3`。
+>
+> 这里如果把`jr`这种情况也算作call的话，并不能解决问题，因为`jr`没有对应的`ret`，所以会匹配不上的。
+> 
+> ```
+>   Call f2
+>     Call f1 # then call f0, call f3
+>       Call f2
+>         Call f1 # then call f0
+>         Ret  f0
+>       Ret  f2
+>       Call f2
+>         Call f1 # then call f0
+>         Ret  f0
+>       Ret  f2
+>     Ret  f3
+>   Ret  f2
+> ```
+
+# 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
   就算你是二周目来思考这个问题, 你也有可能是第一次听到"编程模型"这个概念. 不过如果一周目的时候你已经仔细地阅读过ISA手册, 你会记得确实有这么个概念. 所以, 如果想知道什么是编程模型, RTFM吧.
