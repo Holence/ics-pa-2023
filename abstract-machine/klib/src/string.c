@@ -44,7 +44,7 @@ char *strcat(char *dst, const char *src) {
 
 int strcmp(const char *s1, const char *s2) {
   while (true) {
-    int cmp = *s1 - *s2;
+    int cmp = (uint8_t)*s1 - (uint8_t)*s2;
     if (*s1 == '\0' || *s2 == '\0') {
       return cmp;
     }
@@ -62,7 +62,7 @@ int strncmp(const char *s1, const char *s2, size_t n) {
   }
   int cmp;
   while (n > 0) {
-    cmp = *s1 - *s2;
+    cmp = (uint8_t)*s1 - (uint8_t)*s2;
     if (*s1 == '\0' || *s2 == '\0') {
       break;
     }
