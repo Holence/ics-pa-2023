@@ -1,3 +1,4 @@
 [submodule "am-kernels"]
 	path = am-kernels
 	url = https://github.com/Holence/am-kernels
+	branch = ics2021
