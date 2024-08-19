@@ -81,16 +81,46 @@ void *memset(void *s, int c, size_t n) {
   uint8_t *ptr = s;
   while (n > 0) {
     *ptr = one_byte;
+    ptr++;
     n--;
   }
   return s;
 }
 
 void *memmove(void *dst, const void *src, size_t n) {
-  char *temp = malloc(n);
-  memcpy(temp, src, n);
-  memcpy(dst, src, n);
-  free(temp);
+  // malloc也是klib中需要自己实现的部分，还没实现的时候不能用！
+  // char *temp = malloc(n);
+  // memcpy(temp, src, n);
+  // memcpy(dst, temp, n);
+  // free(temp);
+  // return dst;
+
+  if (n == 0)
+    return dst;
+
+  const char *s = src;
+  char *d = dst;
+
+  if (s < d && s + n > d) {
+    // 只有这一种情况需要逆向复制
+    // src: -----
+    // dst:   -----
+    s += n;
+    d += n;
+    while (n-- > 0) {
+      *--d = *--s;
+    }
+  } else
+    // 正向逆向都行
+    // src: -----
+    // dst:        -----
+    // 只能正向
+    // src:   -----
+    // dst: -----
+    while (n-- > 0) {
+      *d++ = *s++;
+    }
+
   return dst;
 }
 
@@ -114,7 +144,7 @@ int memcmp(const void *s1, const void *s2, size_t n) {
   uint8_t *ptr2 = (uint8_t *)s2;
   int cmp;
   while (n > 0) {
-    cmp = *ptr1 - *ptr1;
+    cmp = *ptr1 - *ptr2;
     if (cmp != 0) {
       break;
     }
