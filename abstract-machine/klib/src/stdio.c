@@ -17,17 +17,19 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
   {                   \
     *out = c;         \
     out++;            \
+    char_written++;   \
   }
 
-#define digit_length(x) \
-  ({                    \
-    int length = 0;     \
-    int temp = x;       \
-    while (temp > 0) {  \
-      temp = temp / 10; \
-      length++;         \
-    }                   \
-    length;             \
+#define BIGGER_INT int64_t
+#define digit_length(x)  \
+  ({                     \
+    int length = 0;      \
+    BIGGER_INT temp = x; \
+    while (temp > 0) {   \
+      temp = temp / 10;  \
+      length++;          \
+    }                    \
+    length;              \
   })
 
 int sprintf(char *out, const char *fmt, ...) {
@@ -47,7 +49,12 @@ int sprintf(char *out, const char *fmt, ...) {
       break;
     case 'd':
       if (translate) {
-        int number = va_arg(ap, int);
+        translate = false;
+        BIGGER_INT number = (BIGGER_INT)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        if (number == 0) {
+          write_char('0');
+          break;
+        }
         if (number < 0) {
           write_char('-');
           number = -number;
@@ -57,20 +64,30 @@ int sprintf(char *out, const char *fmt, ...) {
           out[i] = number % 10 + '0';
           number = number / 10;
         }
+        char_written += length;
         out = out + length;
-        translate = false;
-      };
-      break;
+
+        break;
+      } // to default
     case 's':
-      char *s = va_arg(ap, char *);
-      strcpy(out, s);
-      out = out + strlen(s);
-      translate = false;
-      break;
+      if (translate) {
+        translate = false;
+        char *s = va_arg(ap, char *);
+        strcpy(out, s);
+        int length = strlen(s);
+        out = out + length;
+        char_written += length;
+        break;
+      } // to default
+    case 'c':
+      if (translate) {
+        translate = false;
+        int c = va_arg(ap, int);
+        write_char((uint8_t)c);
+        break;
+      } // to default
     default:
-      *out = *fmt;
-      out++;
-      char_written++;
+      write_char(*fmt);
       break;
     }
     fmt++;
