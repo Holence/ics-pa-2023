@@ -1,7 +1,7 @@
 #include "x86-qemu.h"
 
 struct cpu_local __am_cpuinfo[MAX_CPU] = {};
-static void (* volatile user_entry)();
+static void (*volatile user_entry)();
 static int ap_ready = 0;
 
 static void call_user_entry() {

@@ -3,12 +3,12 @@
 
 #define USER_SPACE RANGE(0x40000000, 0x80000000)
 
-static void* (*pgalloc_usr)(int) = NULL;
-static void (*pgfree_usr)(void*) = NULL;
+static void *(*pgalloc_usr)(int) = NULL;
+static void (*pgfree_usr)(void *) = NULL;
 static int vme_enable = 0;
 static PTE *cur_pdir = NULL;
 
-bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
+bool vme_init(void *(*pgalloc_f)(int), void (*pgfree_f)(void *)) {
   pgalloc_usr = pgalloc_f;
   pgfree_usr = pgfree_f;
   vme_enable = 1;
@@ -16,7 +16,7 @@ bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
 }
 
 void protect(AddrSpace *as) {
-  as->ptr = (PTE*)(pgalloc_usr(PGSIZE));
+  as->ptr = (PTE *)(pgalloc_usr(PGSIZE));
   as->pgsize = PGSIZE;
   as->area = USER_SPACE;
 }

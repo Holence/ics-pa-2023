@@ -3,10 +3,11 @@
 #include <x86/x86.h>
 
 #define SECTSIZE 512
-#define ARGSIZE  1024
+#define ARGSIZE 1024
 
 static inline void wait_disk(void) {
-  while ((inb(0x1f7) & 0xc0) != 0x40);
+  while ((inb(0x1f7) & 0xc0) != 0x40)
+    ;
 }
 
 static inline void read_disk(void *buf, int sect) {
@@ -18,16 +19,16 @@ static inline void read_disk(void *buf, int sect) {
   outb(0x1f6, (sect >> 24) | 0xE0);
   outb(0x1f7, 0x20);
   wait_disk();
-  for (int i = 0; i < SECTSIZE / 4; i ++) {
+  for (int i = 0; i < SECTSIZE / 4; i++) {
     ((uint32_t *)buf)[i] = inl(0x1f0);
   }
 }
 
 static inline void copy_from_disk(void *buf, int nbytes, int disk_offset) {
-  uint32_t cur  = (uint32_t)buf & ~(SECTSIZE - 1);
-  uint32_t ed   = (uint32_t)buf + nbytes;
+  uint32_t cur = (uint32_t)buf & ~(SECTSIZE - 1);
+  uint32_t ed = (uint32_t)buf + nbytes;
   uint32_t sect = (disk_offset / SECTSIZE) + (ARGSIZE / SECTSIZE) + 1;
-  for(; cur < ed; cur += SECTSIZE, sect ++)
+  for (; cur < ed; cur += SECTSIZE, sect++)
     read_disk((void *)cur, sect);
 }
 
@@ -43,11 +44,10 @@ static void load_elf64(Elf64_Ehdr *elf) {
   Elf64_Phdr *ph = (Elf64_Phdr *)((char *)elf + elf->e_phoff);
   for (int i = 0; i < elf->e_phnum; i++, ph++) {
     load_program(
-      (uint32_t)ph->p_filesz,
-      (uint32_t)ph->p_memsz,
-      (uint32_t)ph->p_paddr,
-      (uint32_t)ph->p_offset
-    );
+        (uint32_t)ph->p_filesz,
+        (uint32_t)ph->p_memsz,
+        (uint32_t)ph->p_paddr,
+        (uint32_t)ph->p_offset);
   }
 }
 
@@ -55,11 +55,10 @@ static void load_elf32(Elf32_Ehdr *elf) {
   Elf32_Phdr *ph = (Elf32_Phdr *)((char *)elf + elf->e_phoff);
   for (int i = 0; i < elf->e_phnum; i++, ph++) {
     load_program(
-      (uint32_t)ph->p_filesz,
-      (uint32_t)ph->p_memsz,
-      (uint32_t)ph->p_paddr,
-      (uint32_t)ph->p_offset
-    );
+        (uint32_t)ph->p_filesz,
+        (uint32_t)ph->p_memsz,
+        (uint32_t)ph->p_paddr,
+        (uint32_t)ph->p_offset);
   }
 }
 
@@ -83,8 +82,8 @@ void load_kernel(void) {
   }
 
   if (elf32->e_machine == EM_X86_64) {
-    ((void(*)())(uint32_t)elf64->e_entry)();
+    ((void (*)())(uint32_t)elf64->e_entry)();
   } else {
-    ((void(*)())(uint32_t)elf32->e_entry)();
+    ((void (*)())(uint32_t)elf32->e_entry)();
   }
 }

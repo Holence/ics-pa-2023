@@ -16,7 +16,8 @@ bool mpe_init(void (*entry)()) {
       char ch;
       assert(read(sync_pipe[0], &ch, 1) == 1);
       assert(ch == '+');
-      close(sync_pipe[0]); close(sync_pipe[1]);
+      close(sync_pipe[0]);
+      close(sync_pipe[1]);
 
       thiscpu->cpuid = i;
       __am_init_timer_irq();
@@ -31,8 +32,9 @@ bool mpe_init(void (*entry)()) {
   for (int i = 1; i < cpu_count(); i++) {
     assert(write(sync_pipe[1], "+", 1) == 1);
   }
-  close(sync_pipe[0]); close(sync_pipe[1]);
-  
+  close(sync_pipe[0]);
+  close(sync_pipe[1]);
+
   entry();
   panic("MP entry should not return\n");
 }

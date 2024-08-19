@@ -32,7 +32,7 @@ void __am_percpu_init() {
 }
 
 void putch(char ch) {
-  #define COM1 0x3f8
+#define COM1 0x3f8
   outb(COM1, ch);
 }
 
@@ -44,18 +44,20 @@ void halt(int code) {
   for (const char *p = fmt; *p; p++) {
     char ch = *p;
     switch (ch) {
-      case '$':
-        putch(hex[cpu_current()]);
-        break;
-      case '0': case '4':
-        putch(hex[(code >> (ch - '0')) & 0xf]);
-        break;
-      default:
-        putch(ch);
+    case '$':
+      putch(hex[cpu_current()]);
+      break;
+    case '0':
+    case '4':
+      putch(hex[(code >> (ch - '0')) & 0xf]);
+      break;
+    default:
+      putch(ch);
     }
   }
   outw(0x604, 0x2000); // offer of qemu :)
-  while (1) hlt();
+  while (1)
+    hlt();
 }
 
 Area __am_heap_init() {
@@ -68,7 +70,7 @@ Area __am_heap_init() {
 }
 
 void __am_lapic_init() {
-  for (char *st = (char *)0xf0000; st != (char *)0xffffff; st ++) {
+  for (char *st = (char *)0xf0000; st != (char *)0xffffff; st++) {
     if (*(volatile uint32_t *)st == 0x5f504d5f) {
       uint32_t mpconf_ptr = ((volatile MPDesc *)st)->conf;
       MPConf *conf = (void *)((uintptr_t)(mpconf_ptr));
@@ -90,22 +92,22 @@ void __am_percpu_initgdt() {
 #if __x86_64__
   SegDesc *gdt = CPU->gdt;
   TSS64 *tss = &CPU->tss;
-  gdt[SEG_KCODE] = SEG64(STA_X | STA_R,                      DPL_KERN);
-  gdt[SEG_KDATA] = SEG64(STA_W,                              DPL_KERN);
-  gdt[SEG_UCODE] = SEG64(STA_X | STA_R,                      DPL_USER);
-  gdt[SEG_UDATA] = SEG64(STA_W,                              DPL_USER);
-  gdt[SEG_TSS]   = SEG16(STS_T32A,      tss, sizeof(*tss)-1, DPL_KERN);
+  gdt[SEG_KCODE] = SEG64(STA_X | STA_R, DPL_KERN);
+  gdt[SEG_KDATA] = SEG64(STA_W, DPL_KERN);
+  gdt[SEG_UCODE] = SEG64(STA_X | STA_R, DPL_USER);
+  gdt[SEG_UDATA] = SEG64(STA_W, DPL_USER);
+  gdt[SEG_TSS] = SEG16(STS_T32A, tss, sizeof(*tss) - 1, DPL_KERN);
   bug_on((uintptr_t)tss >> 32);
   set_gdt(gdt, sizeof(gdt[0]) * (NR_SEG + 1));
   set_tr(KSEL(SEG_TSS));
 #else
   SegDesc *gdt = CPU->gdt;
   TSS32 *tss = &CPU->tss;
-  gdt[SEG_KCODE] = SEG32(STA_X | STA_R,   0,     0xffffffff, DPL_KERN);
-  gdt[SEG_KDATA] = SEG32(STA_W,           0,     0xffffffff, DPL_KERN);
-  gdt[SEG_UCODE] = SEG32(STA_X | STA_R,   0,     0xffffffff, DPL_USER);
-  gdt[SEG_UDATA] = SEG32(STA_W,           0,     0xffffffff, DPL_USER);
-  gdt[SEG_TSS]   = SEG16(STS_T32A,      tss, sizeof(*tss)-1, DPL_KERN);
+  gdt[SEG_KCODE] = SEG32(STA_X | STA_R, 0, 0xffffffff, DPL_KERN);
+  gdt[SEG_KDATA] = SEG32(STA_W, 0, 0xffffffff, DPL_KERN);
+  gdt[SEG_UCODE] = SEG32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
+  gdt[SEG_UDATA] = SEG32(STA_W, 0, 0xffffffff, DPL_USER);
+  gdt[SEG_TSS] = SEG16(STS_T32A, tss, sizeof(*tss) - 1, DPL_KERN);
   set_gdt(gdt, sizeof(gdt[0]) * NR_SEG);
   set_tr(KSEL(SEG_TSS));
 #endif

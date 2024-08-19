@@ -1,6 +1,6 @@
 #include <am.h>
 
-bool cte_init(Context*(*handler)(Event, Context*)) {
+bool cte_init(Context *(*handler)(Event, Context *)) {
   return false;
 }
 

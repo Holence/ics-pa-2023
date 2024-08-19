@@ -5,7 +5,7 @@
 #define TIMER_HZ 100
 #define SYSCALL_INSTR_LEN 7
 
-static Context* (*user_handler)(Event, Context*) = NULL;
+static Context *(*user_handler)(Event, Context *) = NULL;
 
 void __am_kcontext_start();
 void __am_switch(Context *c);
@@ -22,7 +22,7 @@ static void irq_handle(Context *c) {
   if (thiscpu->ev.event == EVENT_ERROR) {
     uintptr_t rip = c->uc.uc_mcontext.gregs[REG_RIP];
     printf("Unhandle signal '%s' at rip = %p, badaddr = %p, cause = 0x%x\n",
-        thiscpu->ev.msg, rip, thiscpu->ev.ref, thiscpu->ev.cause);
+           thiscpu->ev.msg, rip, thiscpu->ev.ref, thiscpu->ev.cause);
     assert(0);
   }
   c = user_handler(thiscpu->ev, c);
@@ -41,9 +41,9 @@ static void setup_stack(uintptr_t event, ucontext_t *uc) {
   extern uint8_t _start, _etext;
   int trap_from_user = __am_in_userspace(rip);
   int signal_safe = IN_RANGE(rip, RANGE(&_start, &_etext)) || trap_from_user ||
-    // Hack here: "+13" points to the instruction after syscall. This is the
-    // instruction which will trigger the pending signal if interrupt is enabled.
-    (rip == (void *)&sigprocmask + 13);
+                    // Hack here: "+13" points to the instruction after syscall. This is the
+                    // instruction which will trigger the pending signal if interrupt is enabled.
+                    (rip == (void *)&sigprocmask + 13);
 
   if (((event == EVENT_IRQ_IODEV) || (event == EVENT_IRQ_TIMER)) && !signal_safe) {
     // Shared libraries contain code which are not reenterable.
@@ -56,17 +56,21 @@ static void setup_stack(uintptr_t event, ucontext_t *uc) {
     return;
   }
 
-  if (trap_from_user) __am_pmem_unprotect();
+  if (trap_from_user)
+    __am_pmem_unprotect();
 
   // skip the instructions causing SIGSEGV for syscall
-  if (event == EVENT_SYSCALL) { rip += SYSCALL_INSTR_LEN; }
+  if (event == EVENT_SYSCALL) {
+    rip += SYSCALL_INSTR_LEN;
+  }
   uc->uc_mcontext.gregs[REG_RIP] = (uintptr_t)rip;
 
   // switch to kernel stack if we were previously in user space
   uintptr_t rsp = trap_from_user ? thiscpu->ksp : uc->uc_mcontext.gregs[REG_RSP];
   rsp -= sizeof(Context);
   // keep (rsp + 8) % 16 == 0 to support SSE
-  if ((rsp + 8) % 16 != 0) rsp -= 8;
+  if ((rsp + 8) % 16 != 0)
+    rsp -= 8;
   Context *c = (void *)rsp;
 
   // save the context on the stack
@@ -86,35 +90,51 @@ static void iret(ucontext_t *uc) {
   // restore the context
   *uc = c->uc;
   thiscpu->ksp = c->ksp;
-  if (__am_in_userspace((void *)uc->uc_mcontext.gregs[REG_RIP])) __am_pmem_protect();
+  if (__am_in_userspace((void *)uc->uc_mcontext.gregs[REG_RIP]))
+    __am_pmem_protect();
 }
 
 static void sig_handler(int sig, siginfo_t *info, void *ucontext) {
-  thiscpu->ev = (Event) {0};
+  thiscpu->ev = (Event){0};
   thiscpu->ev.event = EVENT_ERROR;
   switch (sig) {
-    case SIGUSR1: thiscpu->ev.event = EVENT_IRQ_IODEV; break;
-    case SIGUSR2: thiscpu->ev.event = EVENT_YIELD; break;
-    case SIGVTALRM: thiscpu->ev.event = EVENT_IRQ_TIMER; break;
-    case SIGSEGV:
-      if (info->si_code == SEGV_ACCERR) {
-        switch ((uintptr_t)info->si_addr) {
-          case 0x100000: thiscpu->ev.event = EVENT_SYSCALL; break;
-          case 0x100008: iret(ucontext); return;
-        }
+  case SIGUSR1:
+    thiscpu->ev.event = EVENT_IRQ_IODEV;
+    break;
+  case SIGUSR2:
+    thiscpu->ev.event = EVENT_YIELD;
+    break;
+  case SIGVTALRM:
+    thiscpu->ev.event = EVENT_IRQ_TIMER;
+    break;
+  case SIGSEGV:
+    if (info->si_code == SEGV_ACCERR) {
+      switch ((uintptr_t)info->si_addr) {
+      case 0x100000:
+        thiscpu->ev.event = EVENT_SYSCALL;
+        break;
+      case 0x100008:
+        iret(ucontext);
+        return;
       }
-      if (__am_in_userspace(info->si_addr)) {
-        assert(thiscpu->ev.event == EVENT_ERROR);
-        thiscpu->ev.event = EVENT_PAGEFAULT;
-        switch (info->si_code) {
-          case SEGV_MAPERR: thiscpu->ev.cause = MMAP_READ; break;
-          // we do not support mapped user pages with MMAP_NONE
-          case SEGV_ACCERR: thiscpu->ev.cause = MMAP_WRITE; break;
-          default: assert(0);
-        }
-        thiscpu->ev.ref = (uintptr_t)info->si_addr;
+    }
+    if (__am_in_userspace(info->si_addr)) {
+      assert(thiscpu->ev.event == EVENT_ERROR);
+      thiscpu->ev.event = EVENT_PAGEFAULT;
+      switch (info->si_code) {
+      case SEGV_MAPERR:
+        thiscpu->ev.cause = MMAP_READ;
+        break;
+      // we do not support mapped user pages with MMAP_NONE
+      case SEGV_ACCERR:
+        thiscpu->ev.cause = MMAP_WRITE;
+        break;
+      default:
+        assert(0);
       }
-      break;
+      thiscpu->ev.ref = (uintptr_t)info->si_addr;
+    }
+    break;
   }
 
   if (thiscpu->ev.event == EVENT_ERROR) {
@@ -155,7 +175,7 @@ void __am_init_timer_irq() {
   assert(ret == 0);
 }
 
-bool cte_init(Context*(*handler)(Event, Context*)) {
+bool cte_init(Context *(*handler)(Event, Context *)) {
   user_handler = handler;
 
   install_signal_handler();
@@ -163,8 +183,8 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
   return true;
 }
 
-Context* kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  Context *c = (Context*)kstack.end - 1;
+Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
+  Context *c = (Context *)kstack.end - 1;
 
   __am_get_example_uc(c);
   c->uc.uc_mcontext.gregs[REG_RIP] = (uintptr_t)__am_kcontext_start;

@@ -1,16 +1,16 @@
 #include <x86/x86.h>
 
-#define PML4_ADDR  0x1000
-#define PDPT_ADDR  0x2000
+#define PML4_ADDR 0x1000
+#define PDPT_ADDR 0x2000
 
-#define NR_SEG         6       // GDT size
-#define SEG_KCODE      1       // Kernel code
-#define SEG_KDATA      2       // Kernel data/stack
-#define SEG_UCODE      3       // User code
-#define SEG_UDATA      4       // User data/stack
-#define SEG_TSS        5       // Global unique task state segement
+#define NR_SEG 6    // GDT size
+#define SEG_KCODE 1 // Kernel code
+#define SEG_KDATA 2 // Kernel data/stack
+#define SEG_UCODE 3 // User code
+#define SEG_UDATA 4 // User data/stack
+#define SEG_TSS 5   // Global unique task state segement
 
-#define NR_IRQ         256     // IDT size
+#define NR_IRQ 256 // IDT size
 
 #ifndef __ASSEMBLER__
 
@@ -73,9 +73,10 @@ extern struct cpu_local __am_cpuinfo[MAX_CPU];
 
 #define CPU (&__am_cpuinfo[cpu_current()])
 
-#define bug_on(cond) \
-  do { \
-    if (cond) panic("internal error (likely a bug in AM)"); \
+#define bug_on(cond)                                \
+  do {                                              \
+    if (cond)                                       \
+      panic("internal error (likely a bug in AM)"); \
   } while (0)
 
 #define bug() bug_on(1)

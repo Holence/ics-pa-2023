@@ -23,6 +23,7 @@ void __am_uart_tx(AM_UART_TX_T *uart) {
 
 void __am_uart_rx(AM_UART_RX_T *uart) {
   int ret = fgetc(stdin);
-  if (ret == EOF) ret = -1;
+  if (ret == EOF)
+    ret = -1;
   uart->data = ret;
 }

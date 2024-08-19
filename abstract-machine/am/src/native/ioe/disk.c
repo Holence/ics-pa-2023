@@ -34,8 +34,10 @@ void __am_disk_blkio(AM_DISK_BLKIO_T *io) {
   if (fp) {
     fseek(fp, io->blkno * BLKSZ, SEEK_SET);
     int ret;
-    if (io->write) ret = fwrite(io->buf, io->blkcnt * BLKSZ, 1, fp);
-    else ret = fread(io->buf, io->blkcnt * BLKSZ, 1, fp);
+    if (io->write)
+      ret = fwrite(io->buf, io->blkcnt * BLKSZ, 1, fp);
+    else
+      ret = fread(io->buf, io->blkcnt * BLKSZ, 1, fp);
     assert(ret == 1);
   }
 }
