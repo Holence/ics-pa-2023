@@ -33,7 +33,9 @@ void init_alarm();
 void send_key(uint8_t, bool);
 void vga_update_screen();
 
+// cpu_exec()在执行每条指令之后调用device_update()
 void device_update() {
+  // 检查距离上次设备更新是否已经超过一定时间
   static uint64_t last = 0;
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {
@@ -41,6 +43,7 @@ void device_update() {
   }
   last = now;
 
+  // 刷新屏幕
   IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
 #ifndef CONFIG_TARGET_AM
@@ -50,6 +53,7 @@ void device_update() {
     case SDL_QUIT:
       nemu_state.state = NEMU_QUIT;
       break;
+
 #ifdef CONFIG_HAS_KEYBOARD
     // If a key was pressed
     case SDL_KEYDOWN:

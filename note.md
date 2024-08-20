@@ -65,7 +65,7 @@
 0xdeadbeef
 ```
 
-## RTFSC
+## 1.3
 
 大致就是通过`make menuconfig`运行kconfig工具在terminal的图形化界面中进行个性化配置，产生的`include/config/auto.conf`将会用于`make`的个性化编译，产生的`include/generated/autoconf.h`将会用于c语言代码中的`#ifdef`。
 
@@ -84,7 +84,7 @@ $(OBJ_DIR)/%.o: %.c
 	$(call call_fixdep, $(@:.o=.d), $@)
 ```
 
-## 表达式求值
+## 1.4
 
 `p EXPR`指令需要自己写表达式求值的工具。
 
@@ -165,11 +165,11 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-## 监视点
+## 1.5
 
 固定32个可用的watchpoint，用链表分别存储“使用中”、“空闲”队列。
 
-如果设置`w $pc`然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`，说明是明明已经到最后了，却没退出成功。退出的时候是`ebreak`指令在`set_nemu_state(NEMU_END, thispc, code)`，可以在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`时，弄个判断：
+如果`wp_check_changed()`中就只是`nemu_state.state = NEMU_STOP`，那运行时设置`w $pc`，然后一直`c`运行到最后，会到`hostcall.c: invalid_inst()`，说明是已经到了最后，却没退出成功。退出的时候是`ebreak`指令去做`set_nemu_state(NEMU_END, thispc, code)`，这时候就不需要再`wp_check_changed()`了。所以在`wp_check_changed()`中设置`nemu_state.state = NEMU_STOP`时，弄个判断：
 
 ```c
 if (nemu_state.state != NEMU_END) {
@@ -179,7 +179,7 @@ if (nemu_state.state != NEMU_END) {
 
 # PA2
 
-## 2.2 RTFM & RTFSC
+## 2.2
 
 编写RISC-V32I_M的模拟器，在外部用risc-v编译器，编译一些c语言写的rics-v机器码用于测试，之后用nemu运行之。
 
@@ -261,6 +261,7 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 
 ---
 
+> [!NOTE]
 > 不匹配的函数调用和返回，尝试结合反汇编结果, 分析为什么会出现这一现象：看反汇编代码，在f2中调用f1的是正常的`jalr rs`（`jalr ra, rs, 0`），所以触发打印log`call f1`，而f1跳向f0用的是`jr`（`jalr x0, rs, 0`），也就是不把pc存到`ra`就跳出去，将来不用跳回到这条指令+4的地方，而是直接跳回到f1被调用的地方，也就是f2中调用处+4的地方。`jr`指令因为没有存`ra`，也就没被monitor视为是在call，所以从f1跳入f0的时候并不会触发打印`call f0`，而f0要返回了，ret指令会触发打印`ret f0`，所以就出现了`call f1`接着`ret f0`的现象。
 >
 > 同理，为什么`call f1`对应的是`ret f3`？是因为f0中也是`jr`，`call f1`后隐藏地`call f0`，又隐藏地`call f3`，f3里正常调用f2两次，出来的时候自然打印了`ret f3`。
@@ -296,6 +297,55 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src/cpu/difftest/dut.c`的`init_difftest()`中已经用`dlsym()`去`/nemu/tools/spike-diff/build/riscv32-spike-so`去寻找函数了，其实函数在`/nemu/tools/spike-diff/difftest.cc`中。
 
 寻找spike中定义的寄存器顺序，在`/nemu/tools/spike-diff/repo/disasm/regnames.cc`中有，发现和nemu是一致的。
+
+## 2.5
+
+还不懂putch是怎么实现的
+
+> [!NOTE]
+> 理解mainargs，请你通过RTFSC理解这个参数是如何从make命令中传递到hello程序中的, `$ISA-nemu`和`native`采用了不同的传递方法：
+>
+> 这里`make ARCH=$ISA-nemu mainargs=I-love-PA run`
+>
+> `$ISA-nemu`：通过Makefile把`mainargs`编译到客户程序的IMAGE中：nemu.mk中`-DMAINARGS=\"$(mainargs)\"`，在`/am/src/platform/nemu/trm.c`中把`mainargs`存在`char mainargs[]`中，再到调用`hello.c`里的`int main(const char *args)`时，就传入了。
+>
+> `native`：通过`getenv()`获取到输入的`mainargs`，通过`static void init_platform() __attribute__((constructor))`，在`hello.c`的`main()`运行之前，做了很多其他的操作
+>
+> 一个示例
+> 
+> ```c
+> #include <stdio.h>
+> #include <stdlib.h>
+> 
+> int main(char *name);
+> 
+> void __attribute__((constructor)) before_main() {
+>   printf("I can get your name from env.\n");
+>   char *name = getenv("NAME");
+>   int ret = main(name ? name : "root");
+>   printf("After main()\n");
+>   exit(ret);
+>   printf("Nothing goes here\n");
+> }
+> 
+> int main(char *name) {
+>   printf("Greetings! @%s is in main()\n", name);
+>   return 0;
+> }
+> 
+> void __attribute__((destructor)) before_exit() {
+>   printf("Before exiting\n");
+> }
+> ```
+>
+> 运行的时候`NAME=Lord ./FILE`就会输出：
+>
+> ```
+> I can get your name from env.
+> Greetings! @Holence is in main()
+> After main()
+> Before exiting
+> ```
 
 # 二周目问题
 
