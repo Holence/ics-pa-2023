@@ -181,15 +181,18 @@ if (nemu_state.state != NEMU_END) {
 
 编写RISC-V32I_M的模拟器，在外部用risc-v编译器，编译一些c语言写的rics-v机器码用于测试，之后用nemu运行之。
 
-注意：
-- 指令集见《The RISC-V Instruction Set Manual Volume I Unprivileged Architecture》 Instruction Set Listings，其实UCB的green card也都够用了
-- imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
-- load进来的数据也要sign-extend
-- 做`mul`、`mulh`时需要把`uint32_t`转换为`int64_t`去做乘法。但由于bit extend的特性，从`uint32_t`到更多位的`int64_t`需要先到`int32_t`再到`int64_t`，这样才能让32位的负数正确地sign-extend扩展为64位的负数。
+> [!IMPORTANT]
+> - 指令集见《The RISC-V Instruction Set Manual Volume I Unprivileged Architecture》 Instruction Set Listings，其实UCB的green card也都够用了
+> - imm解析可以参考[CS61CPU](https://cs61c.org/su24/projects/proj3/#task-7-2-immediate-generator)，要记得imm都是要sign-extend成32/64位的。
+> - load进来的数据也要sign-extend
+> - 做`mul`、`mulh`时需要把`uint32_t`转换为`int64_t`去做乘法。但由于bit extend的特性，从`uint32_t`到更多位的`int64_t`需要先到`int32_t`再到`int64_t`，这样才能让32位的负数正确地sign-extend扩展为64位的负数。
 
 ❓ecall要做吗？
 
 为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
+
+> [!IMPORTANT]
+> 应该在`/abstract-machine/Makefile`里把`CFLAGS   += -O2`改为`O0`，在`O2`优化的情况下，发现很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令！！❓至少在做cpu-test时是这样
 
 - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
@@ -281,9 +284,16 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 
 要编写详尽的test来测试klib，懒得自己写了，看有人引用了glibc的测试，我也引用一下吧: https://github.com/alelievr/libft-unit-test/blob/master/hardcore-mode/
 
-注意：先在native上用glibc的库函数来测试（先保证这些test本身书写正确）, 然后在native上测试你的klib测试（再保证klib正确）, 最后再到NEMU上运行这些测试代码来测试你的NEMU实现（最后保证nemu正确）
+> [!IMPORTANT]
+> 先在native上用glibc的库函数来测试（先保证这些test本身书写正确）, 然后在native上测试你的klib测试（再保证klib正确）, 最后再到NEMU上运行这些测试代码来测试你的NEMU实现（最后保证nemu正确）
 
-在native上测试klib时出现问题，只能用二分法找到出错点❓这东西没法调试啊？因为也还没做printf，那就把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）。
+在native上测试klib时出现问题，只能用二分法找到出错的用例❓klib的部分没法调试啊？因为也还没做printf，就只能把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）。
+
+---
+
+difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src/cpu/difftest/dut.c`的`init_difftest()`中已经用`dlsym()`去`/nemu/tools/spike-diff/build/riscv32-spike-so`去寻找函数了，其实函数在`/nemu/tools/spike-diff/difftest.cc`中。
+
+寻找spike中定义的寄存器顺序，在`/nemu/tools/spike-diff/repo/disasm/regnames.cc`中有，发现和nemu是一致的。
 
 # 二周目问题
 
