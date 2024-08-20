@@ -2,52 +2,54 @@
 
 没必要用vim。
 
-VSCode安装`c/c++`、`Makefile Tools`插件
+关于IntelliSense，VSCode需要安装`c/c++`、`Makefile Tools`插件，至少这在PA1中还有点用。到PA2的abstract machine中，这个插件貌似就没法识别出`gcc -D`定义的一堆define了❓
 
 > 因为是用make进行编译的复杂项目，`c/c++` IntelliSense 需要知道具体是怎么make的，所以必须安装`Makefile Tools`才不会出现一堆"Identifier not found"红线，见[Configure C/C++ IntelliSense - Configuration providers](https://code.visualstudio.com/docs/cpp/configure-intellisense#_configuration-providers)：`Ctrl+Shift+P` `C/C++ Change Configuration provider` -> Select `Makefile Tools`，"If it identifies only one custom configuration provider, this configuration provider is automatically configured for IntelliSense"
 
-gdb调试，nemu中`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --args /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --log=/home/hc/ics-pa-2023/nemu/build/nemu-log.txt`，于是在vscode中生成调试配置文件`launch.json`，Add Configuation，选择`(gdb) Launch`
+关于gdb调试，可以配置到VSCode里调试，传入`-nb`打印出make gdb时产出的gdb命令，配置vscode的`launch.json`。其实用惯了gdb，也就`b func` `n` `s` `layout split` `p EXPR`，直接在Terminal里调试也挺方便的。
 
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "(gdb) Launch",
-            "type": "cppdbg",
-            "preLaunchTask": "Make",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/riscv32-nemu-interpreter",
-            "args": [
-                "--log=${workspaceFolder}/build/nemu-log.txt",
-            ],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-    ]
-}
-```
+> 以nemu部分的调试为例，`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --args /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --log=/home/hc/ics-pa-2023/nemu/build/nemu-log.txt`，于是在vscode中生成调试配置文件`launch.json`，Add Configuation，选择`Nemu GDB`
+> 
+> ```json
+> {
+>     "version": "0.2.0",
+>     "configurations": [
+>         {
+>             "name": "Nemu GDB",
+>             "type": "cppdbg",
+>             "preLaunchTask": "Make",
+>             "request": "launch",
+>             "program": "${workspaceFolder}/build/riscv32-nemu-interpreter",
+>             "args": [
+>                 "--log=${workspaceFolder}/build/nemu-log.txt",
+>             ],
+>             "stopAtEntry": false,
+>             "cwd": "${fileDirname}",
+>             "environment": [],
+>             "externalConsole": false,
+>             "MIMode": "gdb",
+>             "setupCommands": [
+>                 {
+>                     "description": "Enable pretty-printing for gdb",
+>                     "text": "-enable-pretty-printing",
+>                     "ignoreFailures": true
+>                 },
+>                 {
+>                     "description": "Set Disassembly Flavor to Intel",
+>                     "text": "-gdb-set disassembly-flavor intel",
+>                     "ignoreFailures": true
+>                 }
+>             ]
+>         },
+>     ]
+> }
+> ```
 
 ## （需要补习的）前置知识
 
 - RISC-V：学过CS61C就够用了
 - Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
-- ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[]()
+- ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[Notes](https://github.com/Holence/Notes/blob/main/OS/ELF.md)
 
 # PA1
 
