@@ -21,6 +21,7 @@
 static IOMap maps[NR_MAP] = {};
 static int nr_map = 0;
 
+// 寻找虚拟地址addr对应的IOMap
 static IOMap *fetch_mmio_map(paddr_t addr) {
   int mapid = find_mapid_by_addr(maps, nr_map, addr);
   return (mapid == -1 ? NULL : &maps[mapid]);
@@ -36,10 +37,17 @@ static void report_mmio_overlap(const char *name1, paddr_t l1, paddr_t r1,
 /* device interface */
 void add_mmio_map(const char *name, paddr_t addr, void *space, uint32_t len, io_callback_t callback) {
   assert(nr_map < NR_MAP);
+  // 规划 mmio地址 在 nemu 地址中的分布
+  // 需要几个地址就给几个
   paddr_t left = addr, right = addr + len - 1;
+
+  // 检查地址合法性（防止有人篡改Kconfig中的默认值）
+  // 不能落在普通内存的范围内 (addr < 0x8800 0000 == false)
+  // 设备的默认地址都是大于0xa0000000的
   if (in_pmem(left) || in_pmem(right)) {
     report_mmio_overlap(name, left, right, "pmem", PMEM_LEFT, PMEM_RIGHT);
   }
+  // 设备的地址不能重叠
   for (int i = 0; i < nr_map; i++) {
     if (left <= maps[i].high && right >= maps[i].low) {
       report_mmio_overlap(name, left, right, maps[i].name, maps[i].low, maps[i].high);

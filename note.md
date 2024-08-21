@@ -191,6 +191,9 @@ if (nemu_state.state != NEMU_END) {
 
 ❓ecall要做吗？
 
+> [!INFO]
+> am-kernels，abstract-machine都是啥？下面两个小节会介绍的。
+
 为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
 
 > [!IMPORTANT]
@@ -236,18 +239,31 @@ void _trm_init() {
 }
 ```
 
-❓nemu相当于是一个可以一次性执行完一段程序最后返回一个return值的cpu，仅仅是一个图灵机，运行完就结束了。而我们想要的是更强大的能与外界交互的机器，运行完还能根据外界的反馈再次运行❓那么am就需要根据nemu返回的值来做相应的处理，这是在模拟中断？
+nemu相当于是一个可以一次性执行完一段程序最后返回一个return值的cpu，仅仅是一个图灵机，运行完就结束了。
 
-❓用riscv64-linux-gnu-gcc的输出也能说明这点
+nemu是纯“硬件”的裸机，am-kernels里的程序是普通用户写出来的客户程序，abstract-machine是运行环境。
 
-```bash
-cd /am-kernels/tests/cpu-tests
-# 仅仅编译单个文件到汇编
-riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s # 发现里面没有ebreak
-# 编译整个可执行文件
-riscv64-linux-gnu-gcc tests/dummy.c -o dummy
-riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
-```
+普通用户写的程序依赖于：
+
+- 加载, 销毁程序❓
+  
+  > 用riscv64-linux-gnu-gcc的输出也能说明这点❓
+  >
+  > ```bash
+  > cd /am-kernels/tests/cpu-tests
+  > # 仅仅编译单个文件到汇编
+  > riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s # 发现里面没有ebreak
+  > # 编译整个可执行文件
+  > riscv64-linux-gnu-gcc tests/dummy.c -o dummy
+  > riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
+  > ```
+- `main()`会有个返回值，这个返回值的处理❓
+- 需要方便的接口访问外设
+- 一些通用的库函数
+
+所以就需要一个抽象层abstract-machine
+
+nemu的运行是直接读入一整个IMAGE，是am-kernels的程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。
 
 ## 2.4
 
@@ -300,7 +316,22 @@ difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src
 
 ## 2.5
 
-还不懂putch是怎么实现的
+am-kernel里的程序会通过下面三个API（以及`putch()`的终端打印，串口这个device太过简单，被放在了nemu里）来访问外设
+
+```c
+// 
+bool ioe_init();
+io_read(reg_index) // 是包裹了void ioe_read(int reg, void *buf)的宏
+io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void *buf)的宏
+// reg_index，比如 AM_TIMER_CONFIG，在/abstract-machine/am/include/amdev.h中定义的
+```
+
+ioe.c里lut查出来的函数在干啥❓和nemu里的callback是什么关系❓
+
+在nemu架构中，会被编译为访问内存的指令，从而通过`paddr_read()`/`paddr_write()`判断为不是普通内存地址后（nemu中外设的真实存储空间不在`pmem`数组里，而是`init_map()`里`malloc()`出来的堆空间），进入`mmio_read`/`mmio_write`，根据nemu开机时`init_map()`设定好的`IOMap maps[NR_MAP]`，访问对应的外设（堆上的地址）
+
+在native架构中❓
+
 
 > [!NOTE]
 > 理解mainargs，请你通过RTFSC理解这个参数是如何从make命令中传递到hello程序中的, `$ISA-nemu`和`native`采用了不同的传递方法：

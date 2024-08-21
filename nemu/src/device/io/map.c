@@ -23,10 +23,15 @@
 static uint8_t *io_space = NULL;
 static uint8_t *p_space = NULL;
 
+// 返回page首地址
 uint8_t *new_space(int size) {
   uint8_t *p = p_space;
-  // page aligned;
-  size = (size + (PAGE_SIZE - 1)) & ~PAGE_MASK;
+  // page aligned; one page = 0x0000 ~ 0x1000
+  // if size = 0x1001, then it should take 2 pages
+  // size = (0x1001 + 0x0fff) & (0xfffffffffffff000) = 0x2000 & 0xfffffffffffff000 = 0x2000
+
+  // size = (size + (PAGE_SIZE - 1)) & ~PAGE_MASK;
+  size = (size + PAGE_MASK) & ~PAGE_MASK;
   p_space += size;
   assert(p_space - io_space < IO_SPACE_MAX);
   return p;
@@ -36,6 +41,8 @@ static void check_bound(IOMap *map, paddr_t addr) {
   if (map == NULL) {
     Assert(map != NULL, "address (" FMT_PADDR ") is out of bound at pc = " FMT_WORD, addr, cpu.pc);
   } else {
+    // 为啥这里还要再检查一次？？
+    // 明明fetch_mmio_map()里都查过了
     Assert(addr <= map->high && addr >= map->low,
            "address (" FMT_PADDR ") is out of bound {%s} [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
            addr, map->name, map->low, map->high, cpu.pc);
@@ -55,7 +62,7 @@ void init_map() {
 }
 
 word_t map_read(paddr_t addr, int len, IOMap *map) {
-  assert(len >= 1 && len <= 8);
+  assert(len >= 1 && len <= 8); // 32位最多读4个字节啊，64位才是最多读8个啊❓
   check_bound(map, addr);
   paddr_t offset = addr - map->low;
   invoke_callback(map->callback, offset, len, false); // prepare data to read
@@ -64,7 +71,7 @@ word_t map_read(paddr_t addr, int len, IOMap *map) {
 }
 
 void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
-  assert(len >= 1 && len <= 8);
+  assert(len >= 1 && len <= 8); // 32位最多读4个字节啊，64位才是最多读8个啊❓
   check_bound(map, addr);
   paddr_t offset = addr - map->low;
   host_write(map->space + offset, len, data);
