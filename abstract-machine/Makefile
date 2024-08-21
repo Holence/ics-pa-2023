@@ -101,7 +101,15 @@ INC_PATH += $(WORK_DIR)/include $(addsuffix /include/, $(addprefix $(AM_HOME)/, 
 INCFLAGS += $(addprefix -I, $(INC_PATH))
 
 ARCH_H := arch/$(ARCH).h
-CFLAGS   += -O2 -MMD -Wall -Werror $(INCFLAGS) \
+
+# 为了测试的严谨性，am-kernels/tests/cpu-tests 和 am-kernels/tests/klib-tests要求不要编译优化
+# O2的话，很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令
+ifeq ($(FORCE_O0), y)
+	CFLAGS   += -O0
+else
+	CFLAGS   += -O2
+endif
+CFLAGS   += -MMD -Wall -Werror $(INCFLAGS) \
             -D__ISA__=\"$(ISA)\" -D__ISA_$(shell echo $(ISA) | tr a-z A-Z)__ \
             -D__ARCH__=$(ARCH) -D__ARCH_$(shell echo $(ARCH) | tr a-z A-Z | tr - _) \
             -D__PLATFORM__=$(PLATFORM) -D__PLATFORM_$(shell echo $(PLATFORM) | tr a-z A-Z | tr - _) \
