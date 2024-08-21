@@ -19,20 +19,13 @@
 
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t inst_pc) {
   bool equals = true;
-  if (ref_r->pc != cpu.pc) {
+  if (difftest_check_reg("pc", inst_pc, ref_r->pc, cpu.pc) == false) {
     equals = false;
-    printf(ANSI_FMT("nemu's next pc: " FMT_WORD "\n", ANSI_FG_RED), cpu.pc);
-    printf(ANSI_FMT("ref's next pc: " FMT_WORD "\n", ANSI_FG_RED), ref_r->pc);
   }
   for (int i = 0; i < ARRLEN(cpu.gpr); i++) {
-    if (cpu.gpr[i] != ref_r->gpr[i]) {
+    if (difftest_check_reg(reg_name(i), inst_pc, ref_r->gpr[i], cpu.gpr[i]) == false) {
       equals = false;
-      printf(ANSI_FMT("nemu's %s: " FMT_WORD "\n", ANSI_FG_RED), reg_name(i), cpu.gpr[i]);
-      printf(ANSI_FMT("ref's %s: " FMT_WORD "\n", ANSI_FG_RED), reg_name(i), ref_r->gpr[i]);
     }
-  }
-  if (!equals) {
-    printf(ANSI_FMT("State Mismatch!!!\nCurrent Instruction PC: " FMT_WORD "\n", ANSI_FG_RED), inst_pc);
   }
   return equals;
 }
