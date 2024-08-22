@@ -38,6 +38,7 @@ static inline int find_mapid_by_addr(IOMap *maps, int nr_map, paddr_t addr) {
   int i;
   for (i = 0; i < nr_map; i++) {
     if (map_inside(maps + i, addr)) {
+      // 访问外设的指令一律不跟ref比较
       difftest_skip_ref();
       return i;
     }

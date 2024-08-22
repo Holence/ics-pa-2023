@@ -316,7 +316,7 @@ difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src
 
 ## 2.5
 
-am-kernel里的程序会通过下面三个API（以及`putch()`的终端打印，串口这个device太过简单，被放在了nemu里）来访问外设
+am-kernel里的程序会通过下面三个IOE的API（以及`putch()`的终端打印，串口这个device太过简单和通用，被放在了`trm.c`中）来访问外设
 
 ```c
 // 
@@ -332,6 +332,7 @@ ioe.c里lut查出来的函数在干啥❓和nemu里的callback是什么关系❓
 
 在native架构中❓
 
+### 串口
 
 > [!NOTE]
 > 理解mainargs，请你通过RTFSC理解这个参数是如何从make命令中传递到hello程序中的, `$ISA-nemu`和`native`采用了不同的传递方法：

@@ -5,14 +5,6 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-int printf(const char *fmt, ...) {
-  panic("Not implemented");
-}
-
-int vsprintf(char *out, const char *fmt, va_list ap) {
-  panic("Not implemented");
-}
-
 #define write_char(c) \
   {                   \
     *out = c;         \
@@ -32,10 +24,8 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
     length;              \
   })
 
-int sprintf(char *out, const char *fmt, ...) {
+int vsprintf(char *out, const char *fmt, va_list ap) {
   int char_written = 0;
-  va_list ap;
-  va_start(ap, fmt);
   bool translate = false;
   while (*fmt != '\0') {
     switch (*fmt) {
@@ -93,6 +83,29 @@ int sprintf(char *out, const char *fmt, ...) {
     fmt++;
   }
   *out = '\0';
+  return char_written;
+}
+
+#define MAX_PRINT_LEN 1024
+int printf(const char *fmt, ...) {
+  char out[MAX_PRINT_LEN];
+  va_list ap;
+  va_start(ap, fmt);
+  int char_written = vsprintf(out, fmt, ap);
+  va_end(ap);
+  if (char_written > MAX_PRINT_LEN) {
+    panic("printf's output should not longer than " TOSTRING(MAX_PRINT_LEN) " chars");
+  }
+  for (int i = 0; i < char_written; i++) {
+    putch(out[i]);
+  }
+  return char_written;
+}
+
+int sprintf(char *out, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int char_written = vsprintf(out, fmt, ap);
   va_end(ap);
   return char_written;
 }
