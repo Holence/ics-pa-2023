@@ -316,7 +316,11 @@ difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src
 
 ## 2.5
 
-am-kernel里的程序会通过下面三个IOE的API（以及`putch()`的终端打印，串口这个device太过简单和通用，被放在了`trm.c`中）来访问外设
+内存映射：不同外设的寄存器被分别设定（约定）到nemu内存中的不同区域（均是高于0xa0000000的一个个片区），给CPU的同样是读写内存的指令，但若发现地址不是普通内存的地址，则转而读写各种外设内部的寄存器。
+
+CPU方面，在nemu架构中，会被编译为访问内存的指令，从而通过`paddr_read()`/`paddr_write()`判断为不是普通内存地址后（nemu中外设的真实存储空间不在`pmem`数组里，而是`init_map()`里`malloc()`出来的堆空间。毕竟这地址本来就是虚拟的，读写的地方就是要到外设的寄存器，不在内存里的），进入`mmio_read`/`mmio_write`，根据nemu开机时`init_map()`设定好的`IOMap maps[NR_MAP]`，通过外设对应的callback函数，在read的时候模拟“外设准备寄存器的值，CPU读取所需的外设寄存器的值”，在write的时候模拟“CPU传值入外设寄存器，外设读取值作出后续处理工作”。
+
+客户程序与运行环境方面，am-kernel里的程序会通过下面三个abstract-machine的IOE API来访问外设，`io_read`/`io_write`通过`lut`（look up table）查找读写外设寄存器`reg_index`对应的函数，这些函数（以及`putch`）再调用`inb`/`outb`进行“内存”读写，最终这指令就会触发nemu里的`paddr_read()`/`paddr_write()`。
 
 ```c
 // 
@@ -324,13 +328,11 @@ bool ioe_init();
 io_read(reg_index) // 是包裹了void ioe_read(int reg, void *buf)的宏
 io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void *buf)的宏
 // reg_index，比如 AM_TIMER_CONFIG，在/abstract-machine/am/include/amdev.h中定义的
+
+// 以及放在了`trm.c`中的`putch()`串口（终端打印）
 ```
 
-ioe.c里lut查出来的函数在干啥❓和nemu里的callback是什么关系❓
-
-在nemu架构中，会被编译为访问内存的指令，从而通过`paddr_read()`/`paddr_write()`判断为不是普通内存地址后（nemu中外设的真实存储空间不在`pmem`数组里，而是`init_map()`里`malloc()`出来的堆空间），进入`mmio_read`/`mmio_write`，根据nemu开机时`init_map()`设定好的`IOMap maps[NR_MAP]`，访问对应的外设（堆上的地址）
-
-在native架构中❓
+在native中I/O是怎么实现的❓
 
 ### 串口
 

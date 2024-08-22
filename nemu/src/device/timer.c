@@ -19,13 +19,19 @@
 
 static uint32_t *rtc_port_base = NULL;
 
+// 两个32位的数，组成一个64位的数，总共8个字节
+// CONFIG_RTC_MMIO:   {31-0}
+// CONFIG_RTC_MMIO+4: {63-32}
 static void rtc_io_handler(uint32_t offset, int len, bool is_write) {
   assert(offset == 0 || offset == 4);
-  if (!is_write && offset == 4) {
+  // 读低32位的时候，记录64位的时间到堆上，并在外面host_read读出低32位
+  // /abstract-machine/am/src/platform/nemu/ioe/timer.c中也要保证先读低32位，后读高32位
+  if (!is_write && offset == 0) {
     uint64_t us = get_time();
     rtc_port_base[0] = (uint32_t)us;
     rtc_port_base[1] = us >> 32;
   }
+  // 读高32位的时候，这里什么都不做，仅仅只是让host_read去读出高32位
 }
 
 #ifndef CONFIG_TARGET_AM
