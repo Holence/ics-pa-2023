@@ -12,21 +12,53 @@
     char_written++;   \
   }
 
-#define BIGGER_INT int64_t
-#define digit_length(x)  \
-  ({                     \
-    int length = 0;      \
-    BIGGER_INT temp = x; \
-    while (temp > 0) {   \
-      temp = temp / 10;  \
-      length++;          \
-    }                    \
-    length;              \
+#define digit_length(x, base) \
+  ({                          \
+    int length = 0;           \
+    uint64_t temp = x;        \
+    while (temp > 0) {        \
+      temp = temp / base;     \
+      length++;               \
+    }                         \
+    length;                   \
   })
+
+int write_number(char *out, uint64_t number, int base) {
+  int char_written = 0;
+  if (number == 0) {
+    write_char('0');
+    return char_written;
+  }
+
+  int length = digit_length(number, base);
+  for (int i = length - 1; i >= 0; i--) {
+    switch (base) {
+    case 10:
+      out[i] = number % base + '0';
+      number = number / base;
+      break;
+    case 16:
+      uint8_t digit = number & 0b1111;
+      if (digit < 10) {
+        out[i] = digit + '0';
+      } else {
+        out[i] = digit - 10 + 'A';
+      }
+      number = number >> 4;
+      break;
+    default:
+      break;
+    }
+  }
+  char_written += length;
+  return char_written;
+}
 
 int vsprintf(char *out, const char *fmt, va_list ap) {
   int char_written = 0;
+  int base;
   bool translate = false;
+  uint64_t number;
   while (*fmt != '\0') {
     switch (*fmt) {
     case '%':
@@ -39,26 +71,29 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
       break;
     case 'd':
       if (translate) {
-        translate = false;
-        BIGGER_INT number = (BIGGER_INT)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
-        if (number == 0) {
-          write_char('0');
-          break;
-        }
-        if (number < 0) {
+        base = 10;
+        int64_t temp = (int64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        number = temp;
+        if (temp < 0) {
           write_char('-');
-          number = -number;
+          number = -temp;
         }
-        int length = digit_length(number);
-        for (int i = length - 1; i >= 0; i--) {
-          out[i] = number % 10 + '0';
-          number = number / 10;
-        }
-        char_written += length;
-        out = out + length;
-
-        break;
-      } // to default
+        goto digit_case;
+      }
+    case 'p':
+      if (translate) {
+        write_char('0');
+        write_char('x');
+        base = 16;
+        number = (uint64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        goto digit_case;
+      }
+    case 'x':
+      if (translate) {
+        base = 16;
+        number = (uint64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        goto digit_case;
+      }
     case 's':
       if (translate) {
         translate = false;
@@ -78,6 +113,12 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
       } // to default
     default:
       write_char(*fmt);
+      break;
+    digit_case:
+      translate = false;
+      int length = write_number(out, number, base);
+      char_written += length;
+      out = out + length;
       break;
     }
     fmt++;

@@ -381,6 +381,12 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 > Before exiting
 > ```
 
+## 时钟
+
+AM_TIMER_UPTIME的小坑，注意`rtc_io_handler()`里在什么条件下`get_time()`
+
+
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
@@ -394,3 +400,12 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 TODO:
 - nemu从0开始运行的每一步干了啥在
+- 优化，benchmark跑分
+
+❓
+`trm.c`中输出这三个，为什么是相同的值？？堆往上长，栈往下长，客户程序的堆底、栈顶在哪里？？
+```c
+printf("_heap_start: %p\n", _heap_start);
+printf("_stack_top: %p\n", _stack_top);
+printf("_stack_pointer: %p\n", _stack_pointer);
+```

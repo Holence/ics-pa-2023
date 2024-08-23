@@ -1,7 +1,10 @@
 #include <am.h>
 #include <nemu.h>
+#include <stdio.h>
 
 extern char _heap_start;
+extern char _stack_top;
+extern char _stack_pointer;
 int main(const char *args);
 
 Area heap = RANGE(&_heap_start, PMEM_END);
@@ -23,6 +26,9 @@ void halt(int code) {
 }
 
 void _trm_init() {
+  printf("_heap_start: %p\n", _heap_start);
+  printf("_stack_top: %p\n", _stack_top);
+  printf("_stack_pointer: %p\n", _stack_pointer);
   int ret = main(mainargs);
   halt(ret);
 }
