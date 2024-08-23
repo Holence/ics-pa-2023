@@ -400,12 +400,27 @@ AM_TIMER_UPTIME的小坑，注意`rtc_io_handler()`里在什么条件下`get_tim
 
 TODO:
 - nemu从0开始运行的每一步干了啥在
-- 优化，benchmark跑分
+- 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。！nemu太慢了，mario的FPS是0，benchmark跑分
 
-❓
-`trm.c`中输出这三个，为什么是相同的值？？堆往上长，栈往下长，客户程序的堆底、栈顶在哪里？？
+# 好多好多小问号
+
+`trm.c`中输出这几个，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
+
+还有，也没见`_stack_top`在哪里被使用啊，设置这个东西有什么存在的意义吗？
+
 ```c
-printf("_heap_start: %p\n", _heap_start);
-printf("_stack_top: %p\n", _stack_top);
-printf("_stack_pointer: %p\n", _stack_pointer);
+printf("_pmem_start: %p\n", &_pmem_start);
+printf("PMEM_END: %p\n", PMEM_END);
+printf("_heap_start: %p\n", &_heap_start);
+printf("_stack_top: %p\n", &_stack_top);
+printf("_stack_pointer: %p\n", &_stack_pointer);
+
+PMEM_END:       0x88000000
+                👆HEAP
+_heap_start:    0x80009000
+_stack_pointer: 0x80009000
+                👇STACK
+_stack_top:     0x80001000
+                WHAT?
+_pmem_start:    0x80000000
 ```

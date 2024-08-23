@@ -15,7 +15,7 @@
 #define digit_length(x, base) \
   ({                          \
     int length = 0;           \
-    uint64_t temp = x;        \
+    __KLIB_UINT temp = x;     \
     while (temp > 0) {        \
       temp = temp / base;     \
       length++;               \
@@ -23,7 +23,15 @@
     length;                   \
   })
 
-int write_number(char *out, uint64_t number, int base) {
+#if __riscv_xlen == 64
+#define __KLIB_UINT uint64_t
+#define __KLIB_INT int64_t
+#else
+#define __KLIB_UINT uint32_t
+#define __KLIB_INT int32_t
+#endif
+
+int write_number(char *out, __KLIB_UINT number, int base) {
   int char_written = 0;
   if (number == 0) {
     write_char('0');
@@ -58,7 +66,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
   int char_written = 0;
   int base;
   bool translate = false;
-  uint64_t number;
+  __KLIB_UINT number;
   while (*fmt != '\0') {
     switch (*fmt) {
     case '%':
@@ -72,11 +80,11 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
     case 'd':
       if (translate) {
         base = 10;
-        int64_t temp = (int64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        __KLIB_INT temp = (__KLIB_INT)va_arg(ap, int);
         number = temp;
         if (temp < 0) {
           write_char('-');
-          number = -temp;
+          number = -temp; // ❓INT_MIN被取负是Undefined Behavior，谁知道哪天就出bug了，但想不出更好的办法了
         }
         goto digit_case;
       }
@@ -85,13 +93,13 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
         write_char('0');
         write_char('x');
         base = 16;
-        number = (uint64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        number = (__KLIB_UINT)va_arg(ap, int);
         goto digit_case;
       }
     case 'x':
       if (translate) {
         base = 16;
-        number = (uint64_t)va_arg(ap, int); // 不是很好的方法，只是把上限提高，以保证最小的负数能成功翻转成正数
+        number = (__KLIB_UINT)va_arg(ap, int);
         goto digit_case;
       }
     case 's':
@@ -128,17 +136,17 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
 }
 
 #define MAX_PRINT_LEN 1024
+char buf[MAX_PRINT_LEN];
 int printf(const char *fmt, ...) {
-  char out[MAX_PRINT_LEN];
   va_list ap;
   va_start(ap, fmt);
-  int char_written = vsprintf(out, fmt, ap);
+  int char_written = vsprintf(buf, fmt, ap);
   va_end(ap);
   if (char_written > MAX_PRINT_LEN) {
     panic("printf's output should not longer than " TOSTRING(MAX_PRINT_LEN) " chars");
   }
   for (int i = 0; i < char_written; i++) {
-    putch(out[i]);
+    putch(buf[i]);
   }
   return char_written;
 }
