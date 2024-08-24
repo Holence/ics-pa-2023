@@ -263,7 +263,7 @@ nemu是纯“硬件”的裸机，am-kernels里的程序是普通用户写出来
 
 所以就需要一个抽象层abstract-machine
 
-nemu的运行是直接读入一整个IMAGE，是am-kernels的程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。
+nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。也就是说客户程序通过abstract-machine的加持，就可以跑在任意一种CPU上（物理世界的CPU也性）。
 
 ## 2.4
 
