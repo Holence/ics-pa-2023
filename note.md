@@ -336,6 +336,8 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 ### 串口
 
+只写
+
 > [!NOTE]
 > 理解mainargs，请你通过RTFSC理解这个参数是如何从make命令中传递到hello程序中的, `$ISA-nemu`和`native`采用了不同的传递方法：
 >
@@ -383,16 +385,27 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 ## 时钟
 
+只读
+
 > [!NOTE]
 > AM_TIMER_UPTIME的小坑，注意`rtc_io_handler()`里在什么条件下`get_time()`
 
 ## 键盘
+
+只读
 
 在`cpu-exec.c`的`execute()`过程中会尝试`device_update()`，SDL2库会读入键盘的信号，触发`send_key()`，用队列记录按键信息。
 
 看看预编译后的结果理解宏，打印`scancode`和`am_scancode`，运行`/am-kernels/tests/am-tests/src/main.c`，观察`scancode`和`am_scancode`。
 
 可以看到`abstact-machine/am/include/amdev.h`和`/am-kernels/tests/am-tests/src/tests/keyboard.c`中对键盘码的编号`AM_KEYS`，与`/nemu/src/device/keyboard.c`中的`NEMU_KEYS`是一样的。
+
+## VGA
+
+- vga控制信息: `0xa0000100`开始的2个32bit寄存器
+  - width-height寄存器（只读）
+  - SYNC寄存器（只写）: 客户程序调用`__am_gpu_fbdraw()`在fb(vmem)写入屏幕pixel的数据后，会在SYNC REG写入非零值。之后cpu-exec自动vga_update_screen时，便会发现SYNC REG!=0，则让SDL去更新窗口画面。
+- vga frame buffer（只写）: `0xa1000000`开始的`width*height`个32bit寄存器
 
 # 二周目问题
 

@@ -72,19 +72,29 @@ static inline void update_screen() {
 #endif
 
 void vga_update_screen() {
-  // TODO: call `update_screen()` when the sync register is non-zero,
+  // call `update_screen()` when the sync register is non-zero,
   // then zero out the sync register
+  if (vgactl_port_base[1] != 0) {
+    update_screen();
+  }
+  vgactl_port_base[1] = 0;
 }
 
 void init_vga() {
+  // vga控制信息寄存器 (2*32bit)
   vgactl_port_base = (uint32_t *)new_space(8);
+  // vgactl_port_base[0] 是 width-height寄存器
   vgactl_port_base[0] = (screen_width() << 16) | screen_height();
+  // vgactl_port_base[1] 是 SYNC register
+  // 客户程序调用__am_gpu_fbdraw在fb(vmem)写入屏幕pixel的数据后，会在SYNC REG写入非零值
+  // 之后cpu-exec自动vga_update_screen时，便会发现SYNC REG!=0，则让SDL去更新窗口画面
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map("vgactl", CONFIG_VGA_CTL_PORT, vgactl_port_base, 8, NULL);
 #else
   add_mmio_map("vgactl", CONFIG_VGA_CTL_MMIO, vgactl_port_base, 8, NULL);
 #endif
 
+  // vga frame buffer寄存器 (width*height*32bit)
   vmem = new_space(screen_size());
   add_mmio_map("vmem", CONFIG_FB_ADDR, vmem, screen_size(), NULL);
   IFDEF(CONFIG_VGA_SHOW_SCREEN, init_screen());
