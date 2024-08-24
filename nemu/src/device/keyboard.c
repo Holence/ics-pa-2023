@@ -43,6 +43,14 @@ static uint32_t keymap[256] = {};
 
 static void init_keymap() {
   MAP(NEMU_KEYS, SDL_KEYMAP)
+  // 见nemu/build/obj-riscv32-nemu-interpreter/src/device/keyboard.i，看宏是怎么展开的
+  // 从SDL_SCANCODE映射到NEMU_KEYS
+  // keymap[SDL_SCANCODE_ESCAPE] = NEMU_KEY_ESCAPE;
+  // keymap[SDL_SCANCODE_F1] = NEMU_KEY_F1;
+  // keymap[SDL_SCANCODE_F2] = NEMU_KEY_F2;
+  // keymap[SDL_SCANCODE_F3] = NEMU_KEY_F3;
+  // ...
+  // NEMU_KEYS总共82个，所以keymap[256]并不是满的
 }
 
 #define KEY_QUEUE_LEN 1024
@@ -66,7 +74,13 @@ static uint32_t key_dequeue() {
 
 void send_key(uint8_t scancode, bool is_keydown) {
   if (nemu_state.state == NEMU_RUNNING && keymap[scancode] != NEMU_KEY_NONE) {
+    // Scancode: 0x01 ~ 0x52 （从1到82）
+    // am_scancode: if is_keydown {0x8001 ~ 0x8052} else {0x0001 ~ 0x0052}（从1到82）
+    // 如果是按下的，则am_scancode有四位，为 0x80__
+    // 如果不是按下的，则am_scancode中前两位为0,为 0x00__
     uint32_t am_scancode = keymap[scancode] | (is_keydown ? KEYDOWN_MASK : 0);
+    // printf("scancode: %x\n", scancode);
+    // printf("am_scancode: %x\n", am_scancode);
     key_enqueue(am_scancode);
   }
 }
