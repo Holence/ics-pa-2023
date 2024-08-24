@@ -38,107 +38,120 @@ __attribute__((always_inline)) static inline void pattern_decode(const char *str
 
   uint64_t __key = 0, __mask = 0, __shift = 0;
 
-  for (int i = 0; i < 64; i++) {
-    if (i >= len) {
-      break;
-    } else {
-      char c = str[i];
-      if (c != ' ') {
-        Assert(c == '0' || c == '1' || c == '?',
-               "invalid character '%c' in pattern string", c);
-        __key = (__key << 1) | (c == '1' ? 1 : 0);
-        __mask = (__mask << 1) | (c == '?' ? 0 : 1);
-        __shift = (c == '?' ? __shift + 1 : 0);
-      }
-    }
+  // 写循环的话速度会慢20倍以上？！！
+  // 宏展开后判断更少，jump更少
+  // for (int i = 0; i < 64; i++) {
+  //   if (i >= len) {
+  //     break;
+  //   } else {
+  //     char c = str[i];
+  //     if (c != ' ') {
+  //       Assert(c == '0' || c == '1' || c == '?',
+  //              "invalid character '%c' in pattern string", c);
+  //       __key = (__key << 1) | (c == '1' ? 1 : 0);
+  //       __mask = (__mask << 1) | (c == '?' ? 0 : 1);
+  //       __shift = (c == '?' ? __shift + 1 : 0);
+  //     }
+  //   }
+  // }
+  // if (64 <= len) {
+  //   panic("pattern too long");
+  // }
+  // *key = __key >> __shift;
+  // *mask = __mask >> __shift;
+  // *shift = __shift;
+
+#define macro(i)                                             \
+  if ((i) >= len)                                            \
+    goto finish;                                             \
+  else {                                                     \
+    char c = str[i];                                         \
+    if (c != ' ') {                                          \
+      Assert(c == '0' || c == '1' || c == '?',               \
+             "invalid character '%c' in pattern string", c); \
+      __key = (__key << 1) | (c == '1' ? 1 : 0);             \
+      __mask = (__mask << 1) | (c == '?' ? 0 : 1);           \
+      __shift = (c == '?' ? __shift + 1 : 0);                \
+    }                                                        \
   }
-  if (64 <= len) {
-    panic("pattern too long");
-  }
+
+#define macro2(i) \
+  macro(i);       \
+  macro((i) + 1)
+#define macro4(i) \
+  macro2(i);      \
+  macro2((i) + 2)
+#define macro8(i) \
+  macro4(i);      \
+  macro4((i) + 4)
+#define macro16(i) \
+  macro8(i);       \
+  macro8((i) + 8)
+#define macro32(i) \
+  macro16(i);      \
+  macro16((i) + 16)
+#define macro64(i) \
+  macro32(i);      \
+  macro32((i) + 32)
+  macro64(0);
+  panic("pattern too long");
+#undef macro
+finish:
   *key = __key >> __shift;
   *mask = __mask >> __shift;
   *shift = __shift;
-
-  /*
-  // 干啥写宏啊？弄个for循环不是很简单吗？不能理解啊啊❓
-  #define macro(i) \
-    if ((i) >= len) goto finish; \
-    else { \
-      char c = str[i]; \
-      if (c != ' ') { \
-        Assert(c == '0' || c == '1' || c == '?', \
-            "invalid character '%c' in pattern string", c); \
-        __key  = (__key  << 1) | (c == '1' ? 1 : 0); \
-        __mask = (__mask << 1) | (c == '?' ? 0 : 1); \
-        __shift = (c == '?' ? __shift + 1 : 0); \
-      } \
-    }
-
-  #define macro2(i)  macro(i);   macro((i) + 1)
-  #define macro4(i)  macro2(i);  macro2((i) + 2)
-  #define macro8(i)  macro4(i);  macro4((i) + 4)
-  #define macro16(i) macro8(i);  macro8((i) + 8)
-  #define macro32(i) macro16(i); macro16((i) + 16)
-  #define macro64(i) macro32(i); macro32((i) + 32)
-    macro64(0);
-    panic("pattern too long");
-  #undef macro
-  finish:
-    *key = __key >> __shift;
-    *mask = __mask >> __shift;
-    *shift = __shift;
-  */
 }
 
 __attribute__((always_inline)) static inline void pattern_decode_hex(const char *str, int len,
                                                                      uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
 
-  for (int i = 0; i < 16; i++) {
-    if (i >= len) {
-      break;
-    } else {
-      char c = str[i];
-      if (c != ' ') {
-        Assert((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '?',
-               "invalid character '%c' in pattern string", c);
-        __key = (__key << 4) | (c == '?' ? 0 : (c >= '0' && c <= '9') ? c - '0'
-                                                                      : c - 'a' + 10);
-        __mask = (__mask << 4) | (c == '?' ? 0 : 0xf);
-        __shift = (c == '?' ? __shift + 4 : 0);
-      }
-    }
+  // 写循环的话速度会慢20倍以上？！！
+  // 宏展开后判断更少，jump更少
+  // for (int i = 0; i < 16; i++) {
+  //   if (i >= len) {
+  //     break;
+  //   } else {
+  //     char c = str[i];
+  //     if (c != ' ') {
+  //       Assert((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '?',
+  //              "invalid character '%c' in pattern string", c);
+  //       __key = (__key << 4) | (c == '?' ? 0 : (c >= '0' && c <= '9') ? c - '0'
+  //                                                                     : c - 'a' + 10);
+  //       __mask = (__mask << 4) | (c == '?' ? 0 : 0xf);
+  //       __shift = (c == '?' ? __shift + 4 : 0);
+  //     }
+  //   }
+  // }
+  // if (16 <= len) {
+  //   panic("pattern too long");
+  // }
+  // *key = __key >> __shift;
+  // *mask = __mask >> __shift;
+  // *shift = __shift;
+
+#define macro(i)                                                                     \
+  if ((i) >= len)                                                                    \
+    goto finish;                                                                     \
+  else {                                                                             \
+    char c = str[i];                                                                 \
+    if (c != ' ') {                                                                  \
+      Assert((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '?',           \
+             "invalid character '%c' in pattern string", c);                         \
+      __key = (__key << 4) | (c == '?' ? 0 : (c >= '0' && c <= '9') ? c - '0'        \
+                                                                    : c - 'a' + 10); \
+      __mask = (__mask << 4) | (c == '?' ? 0 : 0xf);                                 \
+      __shift = (c == '?' ? __shift + 4 : 0);                                        \
+    }                                                                                \
   }
-  if (16 <= len) {
-    panic("pattern too long");
-  }
+
+  macro16(0);
+  panic("pattern too long");
+#undef macro
+finish:
   *key = __key >> __shift;
   *mask = __mask >> __shift;
   *shift = __shift;
-
-  /*
-  // 干啥写宏啊？弄个for循环不是很简单吗？不能理解啊啊❓
-  #define macro(i) \
-    if ((i) >= len) goto finish; \
-    else { \
-      char c = str[i]; \
-      if (c != ' ') { \
-        Assert((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '?', \
-            "invalid character '%c' in pattern string", c); \
-        __key  = (__key  << 4) | (c == '?' ? 0 : (c >= '0' && c <= '9') ? c - '0' : c - 'a' + 10); \
-        __mask = (__mask << 4) | (c == '?' ? 0 : 0xf); \
-        __shift = (c == '?' ? __shift + 4 : 0); \
-      } \
-    }
-
-    macro16(0);
-    panic("pattern too long");
-  #undef macro
-  finish:
-    *key = __key >> __shift;
-    *mask = __mask >> __shift;
-    *shift = __shift;
-  */
 }
 
 // --- pattern matching wrappers for decode ---

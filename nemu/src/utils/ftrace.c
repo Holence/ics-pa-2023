@@ -10,7 +10,7 @@ static void read_from_file(FILE *file, size_t offset, size_t size, void *dest) {
   }
 }
 
-char str_buf[64];
+char str_buf[128];
 static void read_str_from_file(FILE *file, size_t offset) {
   fseek(file, offset, SEEK_SET);
   char c;
@@ -107,19 +107,19 @@ void ftrace_log(vaddr_t address, bool jump_in) {
     if (jump_in) {
       depth++;
     }
-    printf(FMT_WORD ":", address);
+    int func_index = -1;
     for (int i = 0; i < functions_nums; i++) {
       // 函数真实范围，包含start，不包含end
       if (address >= Functions[i].start && address < Functions[i].end) {
-        printf("%*c", depth * 2, ' ');
-        if (jump_in) {
-          printf("Call ");
-        } else {
-          printf("Ret  ");
-        }
-        printf("%s\n", Functions[i].name);
+        func_index = i;
         break;
       }
+    }
+    if (func_index != -1) {
+      log_write(FMT_WORD ":"
+                         "%*c"
+                         "%s %s\n",
+                address, depth, ' ', jump_in == true ? "Call " : "Ret  ", Functions[func_index].name);
     }
     if (!jump_in) {
       depth--;

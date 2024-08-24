@@ -444,3 +444,7 @@ _stack_top:     0x80001000
                 WHAT?
 _pmem_start:    0x80000000
 ```
+
+# 大坑
+
+看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少20倍，导致mario运行时FPS为0，还原为宏后FPS可以到10！
