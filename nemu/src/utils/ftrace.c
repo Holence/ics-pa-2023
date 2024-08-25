@@ -93,9 +93,9 @@ void init_ftrace(char *filename) {
     }
   }
 
-  for (int i = 0; i < functions_nums; i++) {
-    printf("%s: %x %x\n", Functions[i].name, Functions[i].start, Functions[i].end);
-  }
+  // for (int i = 0; i < functions_nums; i++) {
+  //   printf("%s: %x %x\n", Functions[i].name, Functions[i].start, Functions[i].end);
+  // }
 
   fclose(file);
   ftrace_enable = true;
@@ -116,10 +116,10 @@ void ftrace_log(vaddr_t address, bool jump_in) {
       }
     }
     if (func_index != -1) {
-      log_write(FMT_WORD ":"
-                         "%*c"
-                         "%s %s\n",
-                address, depth, ' ', jump_in == true ? "Call " : "Ret  ", Functions[func_index].name);
+      _Log(FMT_WORD ":"
+                    "%*c"
+                    "%s %s\n",
+           address, depth, ' ', jump_in == true ? "Call " : "Ret  ", Functions[func_index].name);
     }
     if (!jump_in) {
       depth--;

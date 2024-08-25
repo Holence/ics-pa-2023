@@ -77,7 +77,7 @@ static void iringbuf_trace(char *logbuf) {
   iringbuf_index = (iringbuf_index + 1) % IRINGBUF_SIZE;
 }
 
-static void print_iringbug_log() {
+static void print_iringbuf_log() {
   printf(ANSI_FMT("#################### iringbuf ####################\n", ANSI_FG_RED));
   int index = iringbuf_index;
   int index_end = iringbuf_index == 0 ? IRINGBUF_SIZE - 1 : iringbuf_index - 1;
@@ -195,7 +195,7 @@ void cpu_exec(uint64_t n) {
 #ifdef CONFIG_IRINGBUG_TRACE
     // 出错: invalid_inst 或者 nemu_state.halt_ret!=0时 在stdout输出iringbuf
     if (nemu_state.state == NEMU_ABORT || nemu_state.halt_ret != 0) {
-      print_iringbug_log();
+      print_iringbuf_log();
     }
 #endif
 

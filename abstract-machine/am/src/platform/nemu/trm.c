@@ -25,12 +25,16 @@ void halt(int code) {
     ;
 }
 
+#include "platform/nemu/ioe/ioe.c"
 void _trm_init() {
-  printf("_pmem_start: %p\n", &_pmem_start);
-  printf("PMEM_END: %p\n", PMEM_END);
-  printf("_heap_start: %p\n", &_heap_start);
-  printf("_stack_top: %p\n", &_stack_top);
-  printf("_stack_pointer: %p\n\n", &_stack_pointer);
+  printf("PMEM_END:       %p\n", PMEM_END);
+  printf("                👆HEAP\n");
+  printf("_heap_start:    %p\n", &_heap_start);
+  printf("_stack_pointer: %p\n", &_stack_pointer);
+  printf("                👇STACK\n");
+  printf("_stack_top:     %p\n", &_stack_top);
+  printf("lut[128]:       %p\n", lut);
+  printf("_pmem_start:    %p\n", &_pmem_start);
   int ret = main(mainargs);
   halt(ret);
 }

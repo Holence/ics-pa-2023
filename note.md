@@ -69,6 +69,45 @@ if(XBuf && (inited&4)) {
 }
 ```
 
+## 内存分布
+
+`/abstract-machine/scripts/linker.ld`中规定了几个地址，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
+
+```
+PMEM_END:       0x88000000
+                👆HEAP
+_heap_start:    0x81C1A000
+_stack_pointer: 0x81C1A000
+                👇STACK
+_stack_top:     0x81C12000
+lut[128]:       0x81C11230
+_pmem_start:    0x80000000
+```
+
+还有，也没见`_stack_top`在哪里被使用啊？确实应该添加一个检查是否超过栈顶的代码，不然随手在函数内设个大数组，就把全局变量给抹没了：
+
+> bad-apple的案例
+>
+> 这里不能用栈来存大数组！！！
+>
+> `uint32_t buffer[VIDEO_ROW * VIDEO_COL];`
+>
+> 因为`/abstract-machine/scripts/linker.ld`中把客户程序的栈区写死了，为0x8000个字节（32KB）
+>
+> ```
+> _stack_top = ALIGN(0x1000);
+> . = _stack_top + 0x8000;
+> _stack_pointer = .;
+> ```
+>
+> `0x8000 == 32768 Bytes`
+>
+> 而如果是`128x96`的尺寸，`96 * 128 * 4 == 49152 Bytes`
+>
+> `buffer`的地址为`0x81C0DFB0`，已经跨越了_stack_top的底线，跑到了全局变量区
+>
+> `buffer`比`lut`的地址还低，buffer[index]是往高处写，把全局变量区都抹了，调用`ioe_write`时函数都找不到
+
 # PA1
 
 制作简易的调试器（因为硬件都是模拟出来的，打印寄存器、内存也就是打印出数组中的值）。读代码，找到需要调用的函数或需要访问的static变量（应该是需要手动添加include的）。
@@ -451,26 +490,3 @@ sbuf用一种循环的方式去读写
 TODO:
 - nemu从0开始运行的每一步干了啥在
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。！nemu太慢了，mario的FPS是0，benchmark跑分
-
-# 好多好多小问号
-
-`trm.c`中输出这几个，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
-
-还有，也没见`_stack_top`在哪里被使用啊，设置这个东西有什么存在的意义吗？
-
-```c
-printf("_pmem_start: %p\n", &_pmem_start);
-printf("PMEM_END: %p\n", PMEM_END);
-printf("_heap_start: %p\n", &_heap_start);
-printf("_stack_top: %p\n", &_stack_top);
-printf("_stack_pointer: %p\n", &_stack_pointer);
-
-PMEM_END:       0x88000000
-                👆HEAP
-_heap_start:    0x80009000
-_stack_pointer: 0x80009000
-                👇STACK
-_stack_top:     0x80001000
-                WHAT?
-_pmem_start:    0x80000000
-```
