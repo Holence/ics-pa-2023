@@ -120,8 +120,10 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
 
+#ifndef CONFIG_TARGET_AM
   // watchpoint检查是否有更新，若有的话，打印新旧值，并暂停exec
   wp_check_changed();
+#endif
 }
 
 static void exec_once(Decode *s, vaddr_t pc) {
