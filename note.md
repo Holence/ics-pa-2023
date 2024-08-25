@@ -320,7 +320,7 @@ difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src
 
 CPU方面，在nemu架构中，会被编译为访问内存的指令，从而通过`paddr_read()`/`paddr_write()`判断为不是普通内存地址后（nemu中外设的真实存储空间不在`pmem`数组里，而是`init_map()`里`malloc()`出来的堆空间。毕竟这地址本来就是虚拟的，读写的地方就是要到外设的寄存器，不在内存里的），进入`mmio_read`/`mmio_write`，根据nemu开机时`init_map()`设定好的`IOMap maps[NR_MAP]`，通过外设对应的callback函数，在read的时候模拟“外设准备寄存器的值，CPU读取所需的外设寄存器的值”，在write的时候模拟“CPU传值入外设寄存器，外设读取值作出后续处理工作”。
 
-客户程序与运行环境方面，am-kernel里的程序会通过下面三个abstract-machine的IOE API来访问外设，`io_read`/`io_write`通过`lut`（look up table）查找读写外设寄存器`reg_index`对应的函数，这些函数（以及`putch`）再调用`inb`/`outb`进行“内存”读写，最终这指令就会触发nemu里的`paddr_read()`/`paddr_write()`。
+客户程序与运行环境方面，am-kernel里的程序会通过下面三个abstract-machine的IOE API来访问外设，`io_read`/`io_write`通过`lut`（look up table）查找读写外设“抽象”寄存器`reg_index`对应的函数，这些函数（以及`putch`）再调用`inb`/`outb`进行“内存”读写，最终这指令就会触发nemu里的`paddr_read()`/`paddr_write()`。
 
 ```c
 // 
@@ -333,6 +333,8 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 ```
 
 在native中I/O是怎么实现的❓
+
+在通读以及实现这部分的代码时，先读am-kernels中在调用的样子，明白abstract-machine中`ioe.c`“抽象”寄存器对应的函数的功能是啥，再去看nemu中硬件读写要实现的。
 
 ### 串口
 
@@ -406,6 +408,16 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
   - width-height寄存器（只读）
   - SYNC寄存器（只写）: 客户程序调用`__am_gpu_fbdraw()`在fb(vmem)写入屏幕pixel的数据后，会在SYNC REG写入非零值。之后cpu-exec自动vga_update_screen时，便会发现SYNC REG!=0，则让SDL去更新窗口画面。
 - vga frame buffer（只写）: `0xa1000000`开始的`width*height`个32bit寄存器
+
+## 声卡
+
+客户程序buf -> sbuf -> SDL stream
+
+第一个流入在AM中实现，只要sbuf不满，即可流入
+
+第二个流入在nemu中实现，只有在SDL audio的callback被调用时，才开始流。
+
+sbuf用一种循环的方式去读写
 
 # 二周目问题
 

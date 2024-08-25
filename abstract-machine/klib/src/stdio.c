@@ -106,6 +106,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
       if (translate) {
         translate = false;
         char *s = va_arg(ap, char *);
+        assert(s != NULL);
         strcpy(out, s);
         int length = strlen(s);
         out = out + length;
