@@ -121,6 +121,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
         break;
       } // to default
     default:
+      translate = false; // 如果前面是%，后面遇到不认识的格式（这里还没实现的格式），取消本次转义
       write_char(*fmt);
       break;
     digit_case:

@@ -31,6 +31,7 @@ uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
+void SDL_PauseAudio(int pause_on);
 void device_update();
 
 #ifdef CONFIG_ITRACE
@@ -99,6 +100,10 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE
   // write itrace to _this->logbuf
   itrace(_this);
+  // print to stdout
+  if (g_print_step) {
+    puts(_this->logbuf);
+  }
 #endif
 
 #ifdef CONFIG_ITRACE_COND
@@ -112,11 +117,6 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   // record iringbuf
   iringbuf_trace(_this->logbuf);
 #endif
-
-  // print to stdout
-  if (g_print_step) {
-    IFDEF(CONFIG_ITRACE, puts(_this->logbuf));
-  }
 
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
 
@@ -179,7 +179,9 @@ void cpu_exec(uint64_t n) {
 
   uint64_t timer_start = get_time();
 
+  IFDEF(CONFIG_HAS_AUDIO, SDL_PauseAudio(0)); // start audio
   execute(n);
+  IFDEF(CONFIG_HAS_AUDIO, SDL_PauseAudio(1)); // pause audio
 
   uint64_t timer_end = get_time();
   g_timer += timer_end - timer_start;

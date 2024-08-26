@@ -32,8 +32,7 @@ static int sbuf_index = 0; // 以循环存储的方式用sbuf
 void __am_audio_play(AM_AUDIO_PLAY_T *ctl) {
   uint8_t *buf_ptr = ctl->buf.start;
   uint32_t sbuf_size = inl(AUDIO_SBUF_SIZE_ADDR);
-  // transfer_count是需要搬运到SBUF中的长度
-  int transfer_count = ctl->buf.end - ctl->buf.start;
+  int transfer_count = ctl->buf.end - ctl->buf.start; // 需要搬运到SBUF中的长度
 
   for (int i = 0; i < transfer_count; i++) {
 
@@ -45,8 +44,8 @@ void __am_audio_play(AM_AUDIO_PLAY_T *ctl) {
     outb(AUDIO_SBUF_ADDR + sbuf_index, buf_ptr[i]);
     sbuf_index = (sbuf_index + 1) % sbuf_size;
 
-    // // ❓不能每复制一个byte就改一次reg_count，会大概率触发噪音，原理不明！！！
-    // // outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + 1);
+    // 每复制一个byte就改一次reg_count，也行吧，但没必要
+    // outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + 1);
   }
   // 复制完后再告知reg_count，也不迟
   outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + transfer_count);

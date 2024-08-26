@@ -332,6 +332,10 @@ void sdb_mainloop() {
     if (i == NR_CMD) {
       printf(ANSI_FMT("Unknown command '%s'\n", ANSI_FG_RED), cmd);
     }
+
+    if (nemu_state.state == NEMU_QUIT) {
+      return;
+    }
   }
   // main loop
 }

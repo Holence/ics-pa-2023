@@ -20,9 +20,15 @@
 #include <stdio.h>
 #include <utils.h>
 
+#ifndef CONFIG_TARGET_AM
 #define Log(format, ...)                                  \
   _Log(ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
        __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#else
+#define Log(format, ...)                                            \
+  _Log(ANSI_FMT("Target AM [%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
+       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#endif
 
 #define Assert(cond, format, ...)                                                                   \
   do {                                                                                              \

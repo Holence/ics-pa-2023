@@ -234,6 +234,10 @@ if (nemu_state.state != NEMU_END) {
 }
 ```
 
+## 必答题
+
+过
+
 # PA2
 
 ## 2.2
@@ -259,6 +263,15 @@ if (nemu_state.state != NEMU_END) {
 - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
 ❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNAL`的错。
+
+> [!NOTE]
+> RTFSC理解指令执行的过程
+>
+> `init_monitor()`的部分就是初始化nemu，并装入客户程序的IMAGE到内存pmem，之后便进入`engine_start()`，进入sdb互动界面或者`cpu_exec()`，客户程序指令执行的过程发生在`cpu_exec()`中。
+>
+> `execute()`的循环中`exec_once()`, `s->pc`为当前指令的地址，进入`isa_exec_once()`后，`inst_fetch()`取回二进制指令，静态下一跳地址设置为`s->snpc = s->pc + 4`，进入`decode_exec()`，动态下一跳地址默认设为`s->dnpc = s->snpc`，在指令执行的过程中，那些跳转指令会改变`s->dnpc`的值。后面是一堆附带goto “INSTPAT_END”的block，一旦`(((uint64_t)INSTPAT_INST(s) >> shift) & mask) == key`，即匹配成功，进入`decode_operand()`解析立即数和读取寄存器src1和src2，最后执行对应的`EXECUTE_EXPR`。出去的时候`x0`寄存器要手动归零（因为是软件实现的不作判断，写入就写入了，硬件写入`x0`是不通的）。出去让cpu的下一跳设为`cpu.pc = s->dnpc`，最后处理trace的信息、处理外设。只要`nemu_state.state == NEMU_RUNNING`，就以此循环往复。
+>
+> 直到客户程序发出ebreak的指令而`NEMU_END`（要么是正常运行结束`ret==0`，要么是中途异常退出`ret!=0`），或者nemu出现内部错误而`NEMU_ABORT`，结束`execute()`的循环，退出nemu。
 
 ## Makefile解析
 
@@ -442,14 +455,14 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 > Before exiting
 > ```
 
-## 时钟
+### 时钟
 
 只读
 
 > [!NOTE]
 > AM_TIMER_UPTIME的小坑，注意`rtc_io_handler()`里在什么条件下`get_time()`
 
-## 键盘
+### 键盘
 
 只读
 
@@ -459,14 +472,14 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 可以看到`abstact-machine/am/include/amdev.h`和`/am-kernels/tests/am-tests/src/tests/keyboard.c`中对键盘码的编号`AM_KEYS`，与`/nemu/src/device/keyboard.c`中的`NEMU_KEYS`是一样的。
 
-## VGA
+### VGA
 
 - vga控制信息: `0xa0000100`开始的2个32bit寄存器
   - width-height寄存器（只读）
   - SYNC寄存器（只写）: 客户程序调用`__am_gpu_fbdraw()`在fb(vmem)写入屏幕pixel的数据后，会在SYNC REG写入非零值。之后cpu-exec自动vga_update_screen时，便会发现SYNC REG!=0，则让SDL去更新窗口画面。
 - vga frame buffer（只写）: `0xa1000000`开始的`width*height`个32bit寄存器
 
-## 声卡
+### 声卡
 
 客户程序buf -> sbuf -> SDL stream
 
@@ -475,6 +488,15 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 第二个流入在nemu中实现，只有在SDL audio的callback被调用时，才开始流。
 
 sbuf用一种循环的方式去读写
+
+## 必答题
+
+TODO: 编译与链接
+
+- 在nemu/include/cpu/ifetch.h中, 你会看到由static inline开头定义的inst_fetch()函数. 分别尝试去掉static, 去掉inline或去掉两者, 然后重新进行编译, 你可能会看到发生错误. 请分别解释为什么这些错误会发生/不发生? 你有办法证明你的想法吗?
+- 在nemu/include/common.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问重新编译后的NEMU含有多少个dummy变量的实体? 你是如何得到这个结果的?
+- 添加上题中的代码后, 再在nemu/include/debug.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问此时的NEMU含有多少个dummy变量的实体? 与上题中dummy变量实体数目进行比较, 并解释本题的结果.
+- 修改添加的代码, 为两处dummy变量进行初始化:volatile static int dummy = 0; 然后重新编译NEMU. 你发现了什么问题? 为什么之前没有出现这样的问题? (回答完本题后可以删除添加的代码.)
 
 # 二周目问题
 
@@ -486,7 +508,7 @@ sbuf用一种循环的方式去读写
 与此相关的问题还有: NEMU中为什么要有nemu_trap? 为什么要有monitor?
 - 1.6 [How debuggers work](https://eli.thegreenplace.net/2011/01/23/how-debuggers-work-part-1/)
 - 2.3 为什么要有AM？操作系统也有自己的运行时环境. AM和操作系统提供的运行时环境有什么不同呢? 为什么会有这些不同?
+- 2.5 读am-kernels中的LiteNES
 
 TODO:
-- nemu从0开始运行的每一步干了啥在
-- 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。！nemu太慢了，mario的FPS是0，benchmark跑分
+- 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。

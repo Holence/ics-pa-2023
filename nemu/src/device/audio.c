@@ -39,12 +39,13 @@ static void add_more_data(void *userdata, Uint8 *stream, int len) {
   memset(stream, 0, len);
   int sbuf_count = audio_base[reg_count];
   int transfer_count = len < sbuf_count ? len : sbuf_count;
+
   // method 1
   // for (int i = 0; i < transfer_count; i++) {
   //   // if sbuf has not used data
   //   *stream = sbuf[sbuf_index];
   //   stream++;
-  //   sbuf_index = (sbuf_index + 1) % 0x10000;
+  //   sbuf_index = (sbuf_index + 1) % CONFIG_SB_SIZE;
   // }
   // audio_base[reg_count] -= transfer_count;
 
