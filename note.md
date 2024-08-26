@@ -51,11 +51,38 @@
 - Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
 - ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[Notes](https://github.com/Holence/Notes/blob/main/OS/ELF.md)
 
-# 坑
+# 重要信息
 
 ## 关于优化
 
 看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少20倍，导致mario运行时FPS为0，还原为宏后FPS可以到10（`NR_FRAMESKIP==1`的情况）！
+
+## 关于AM
+
+AM的五个模块：
+
+- TRM所需的最简单的运行时环境 —— PA2.3
+  - init，`start.S`，具体做了啥❓
+  - halt，客户程序的`main()`会有个返回值，这个返回值会在`ebreak`的时候被nemu捕获，nemu根据值作出相应的处理（PA2中就是退出，Good/Bad Trap）
+    > 用riscv64-linux-gnu-gcc的输出也能说明这点，单纯的程序文件的机器码并不包含ebreak，只有链接上运行环境的部分，才会有ebreak
+    >
+    > ```bash
+    > cd /am-kernels/tests/cpu-tests
+    > 
+    > # 仅仅编译单个文件到汇编
+    > riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s
+    > # 发现里面没有ebreak
+    > 
+    > # 编译整个可执行文件
+    > riscv64-linux-gnu-gcc tests/dummy.c -o dummy
+    > riscv64-linux-gnu-objdump -d dummy > dump.txt
+    > # 发现在_start()函数中有ebreak，这并不是main()函数
+    > ```
+  - 一些通用（ISA架构无关）的库函数
+- IOE (I/O Extension) 访问外设的接口 —— PA2.5
+- CTE (Context Extension) 上下文扩展
+- VME (Virtual Memory Extension) 虚存扩展
+- MPE (Multi-Processor Extension) 多处理器扩展
 
 ## 关于fceux红白机模拟器画面无显示
 
@@ -250,19 +277,23 @@ if (nemu_state.state != NEMU_END) {
 > - load进来的数据也要sign-extend
 > - 做`mul`、`mulh`时需要把`uint32_t`转换为`int64_t`去做乘法。但由于bit extend的特性，从`uint32_t`到更多位的`int64_t`需要先到`int32_t`再到`int64_t`，这样才能让32位的负数正确地sign-extend扩展为64位的负数。
 
-❓ecall要做吗？
-
 > [!TIP]
-> am-kernels，abstract-machine都是啥？下面两个小节会介绍的。
+> ecall不用做，等PA3再说
+
+---
 
 为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
 
 > [!IMPORTANT]
-> 至少在做cpu-test时，把`/abstract-machine/Makefile`里把`CFLAGS   += -O2`改为`O0`。在`O2`优化的情况下，发现很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令！！
+>  - 至少在做cpu-test时，把`/abstract-machine/Makefile`里把`CFLAGS   += -O2`改为`O0`。在`O2`优化的情况下，发现很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令！！
+>  - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
-- string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
+> [!TIP]
+> am-kernels，abstract-machine都是啥？下面两个小节会介绍的。
 
 ❓很奇怪，当我在nemu中`make menuconfig`选中了Enable Address Sanitizer后，有时候编译就会报`AddressSanitizer:DEADLYSIGNAL`的错。
+
+---
 
 > [!NOTE]
 > RTFSC理解指令执行的过程
@@ -313,23 +344,7 @@ nemu相当于是一个可以一次性执行完一段程序最后返回一个retu
 
 nemu是纯“硬件”的裸机，am-kernels里的程序是普通用户写出来的客户程序，abstract-machine是运行环境。
 
-普通用户写的程序依赖于：
-
-- 加载, 销毁程序❓
-  
-  > 用riscv64-linux-gnu-gcc的输出也能说明这点❓
-  >
-  > ```bash
-  > cd /am-kernels/tests/cpu-tests
-  > # 仅仅编译单个文件到汇编
-  > riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s # 发现里面没有ebreak
-  > # 编译整个可执行文件
-  > riscv64-linux-gnu-gcc tests/dummy.c -o dummy
-  > riscv64-linux-gnu-objdump -d dummy > dump.txt # 发现在_start()函数中有ebreak，这并不是main()函数
-  > ```
-- `main()`会有个返回值，这个返回值的处理❓
-- 需要方便的接口访问外设
-- 一些通用的库函数
+客户程序依赖于AM，见[AM的五个模块](#关于AM)
 
 所以就需要一个抽象层abstract-machine
 
@@ -499,6 +514,20 @@ sbuf用一种循环的方式去读写
 > - 添加上题中的代码后, 再在nemu/include/debug.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问此时的NEMU含有多少个dummy变量的实体? 与上题中dummy变量实体数目进行比较, 并解释本题的结果.
 > - 修改添加的代码, 为两处dummy变量进行初始化:volatile static int dummy = 0; 然后重新编译NEMU. 你发现了什么问题? 为什么之前没有出现这样的问题? (回答完本题后可以删除添加的代码.)
 
+# PA3
+
+开始进入原始级操作系统的世界！
+
+❓下面的说法待核查
+
+为了让操作系统作为奶妈，客户程序作为宝宝，客户程序将只被允许执行非特权指令(unprivileged)，而操作系统才能执行特权指令(privileged)。硬件上需要一个保存mode的“状态寄存器”，规定只有当状态寄存器表示处于特权模式时，才能运行特权指令。客户程序需要调用操作系统的某个函数，也就是Trap❓System Call❓，修改状态寄存器为特权模式，再去执行特权指令。
+
+这个系统的函数，广义上为Trap（包括Exception异常、System Call系统调用、Interrupt中断），通过传入index（Trap的原因），查表得到某个Trap的函数。
+
+## 3.2
+
+最好还是能先看看客户程序、操作系统调用时的接口，再去AM里写实现
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
@@ -510,6 +539,8 @@ sbuf用一种循环的方式去读写
 - 1.6 [How debuggers work](https://eli.thegreenplace.net/2011/01/23/how-debuggers-work-part-1/)
 - 2.3 为什么要有AM？操作系统也有自己的运行时环境. AM和操作系统提供的运行时环境有什么不同呢? 为什么会有这些不同?
 - 2.5 读am-kernels中的LiteNES
+- 3.1 什么是操作系统?
+- 3.2 这些程序状态(x86的eflags, cs, eip; mips32的epc, status, cause; riscv32的mepc, mstatus, mcause)必须由硬件来保存吗? 能否通过软件来保存? 为什么?
 
 TODO:
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
