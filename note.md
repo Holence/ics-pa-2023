@@ -252,13 +252,13 @@ if (nemu_state.state != NEMU_END) {
 
 ❓ecall要做吗？
 
-> [!INFO]
+> [!TIP]
 > am-kernels，abstract-machine都是啥？下面两个小节会介绍的。
 
 为了方便测试，在`/abstract-machine/scripts/platform/nemu.mk`中的NEMUFLAGS加上`-b`，让传入nemu的参数开启batch mode，这样就不用每次开始运行了还要手动`c`运行和`q`退出。之后直接运行`make ARCH=riscv32-nemu run`就能运行所有的测试了。
 
 > [!IMPORTANT]
-> 应该在`/abstract-machine/Makefile`里把`CFLAGS   += -O2`改为`O0`，在`O2`优化的情况下，发现很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令！！❓至少在做cpu-test时是这样
+> 至少在做cpu-test时，把`/abstract-machine/Makefile`里把`CFLAGS   += -O2`改为`O0`。在`O2`优化的情况下，发现很多测试编译出来给check函数的`a0`直接就设为了编译器预想的值，根本没有运行nemu计算的指令！！
 
 - string和hello-str还需要实现额外的内容才能运行，现在运行会报错的，记得跳过（我就忘了，看到汇编里`sb a0,1016(a5) # a00003f8 <_end+0x1fff73f8>`写着超出了_end的地址，意识到不应该是我的问题，才到文档里查到需要跳过这两个测试）
 
@@ -459,7 +459,7 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 只读
 
-> [!NOTE]
+> [!TIP]
 > AM_TIMER_UPTIME的小坑，注意`rtc_io_handler()`里在什么条件下`get_time()`
 
 ### 键盘
@@ -481,7 +481,7 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 ### 声卡
 
-客户程序buf -> sbuf -> SDL stream
+数据流啊流：客户程序buf -> nemu audio sbuf -> SDL stream
 
 第一个流入在AM中实现，只要sbuf不满，即可流入
 
@@ -491,12 +491,13 @@ sbuf用一种循环的方式去读写
 
 ## 必答题
 
-TODO: 编译与链接
-
-- 在nemu/include/cpu/ifetch.h中, 你会看到由static inline开头定义的inst_fetch()函数. 分别尝试去掉static, 去掉inline或去掉两者, 然后重新进行编译, 你可能会看到发生错误. 请分别解释为什么这些错误会发生/不发生? 你有办法证明你的想法吗?
-- 在nemu/include/common.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问重新编译后的NEMU含有多少个dummy变量的实体? 你是如何得到这个结果的?
-- 添加上题中的代码后, 再在nemu/include/debug.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问此时的NEMU含有多少个dummy变量的实体? 与上题中dummy变量实体数目进行比较, 并解释本题的结果.
-- 修改添加的代码, 为两处dummy变量进行初始化:volatile static int dummy = 0; 然后重新编译NEMU. 你发现了什么问题? 为什么之前没有出现这样的问题? (回答完本题后可以删除添加的代码.)
+> [!NOTE]
+> TODO: 编译与链接
+>
+> - 在nemu/include/cpu/ifetch.h中, 你会看到由static inline开头定义的inst_fetch()函数. 分别尝试去掉static, 去掉inline或去掉两者, 然后重新进行编译, 你可能会看到发生错误. 请分别解释为什么这些错误会发生/不发生? 你有办法证明你的想法吗?
+> - 在nemu/include/common.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问重新编译后的NEMU含有多少个dummy变量的实体? 你是如何得到这个结果的?
+> - 添加上题中的代码后, 再在nemu/include/debug.h中添加一行volatile static int dummy; 然后重新编译NEMU. 请问此时的NEMU含有多少个dummy变量的实体? 与上题中dummy变量实体数目进行比较, 并解释本题的结果.
+> - 修改添加的代码, 为两处dummy变量进行初始化:volatile static int dummy = 0; 然后重新编译NEMU. 你发现了什么问题? 为什么之前没有出现这样的问题? (回答完本题后可以删除添加的代码.)
 
 # 二周目问题
 
