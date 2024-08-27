@@ -6,7 +6,9 @@
 
 > 因为是用make进行编译的复杂项目，`c/c++` IntelliSense 需要知道具体是怎么make的，所以必须安装`Makefile Tools`才不会出现一堆"Identifier not found"红线，见[Configure C/C++ IntelliSense - Configuration providers](https://code.visualstudio.com/docs/cpp/configure-intellisense#_configuration-providers)：`Ctrl+Shift+P` `C/C++ Change Configuration provider` -> Select `Makefile Tools`，"If it identifies only one custom configuration provider, this configuration provider is automatically configured for IntelliSense"
 
-关于gdb调试，可以配置到VSCode里调试，传入`-nb`打印出make gdb时产出的gdb命令，配置vscode的`launch.json`。其实用惯了gdb，也就`b func` `n` `s` `layout split` `p EXPR`，直接在Terminal里调试也挺方便的。
+## 调试NEMU
+
+可以配置到VSCode里调试，传入`-nb`打印出make gdb时产出的gdb命令，配置vscode的`launch.json`。
 
 > 以nemu部分的调试为例，`make gdb`给出了`gdb -s /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --args /home/hc/ics-pa-2023/nemu/build/riscv32-nemu-interpreter --log=/home/hc/ics-pa-2023/nemu/build/nemu-log.txt`，于是在vscode中生成调试配置文件`launch.json`，Add Configuation，选择`Nemu GDB`
 > 
@@ -45,9 +47,17 @@
 > }
 > ```
 
-## （需要补习的）前置知识
+其实用惯了gdb，也就`b func` `n` `s` `layout split` `p EXPR`，直接在Terminal里调试也挺方便的。
 
-- RISC-V：学过CS61C就够用了
+## 调试AM+客户程序
+
+用自己写的nemu sdb只能在指令的层面上调试，不是很方便，等把klib中的`printf`实现了，就可以用`printf`调试了。
+
+只要通过了am-kernels中的cpu-test以及PA2.4自己写的详尽test，出错的地方就不可能是nemu了。只要客户程序能在native上正常运行，那么客户程序部分也没有错。那么错的只可能是am的部分了，用`printf`也差不多够用。
+
+# （需要补习的）前置知识
+
+- RISC-V：PA2是unprivileged，CS61C就够用了。PA3涉及privilege。
 - Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
 - ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[Notes](https://github.com/Holence/Notes/blob/main/OS/ELF.md)
 
@@ -544,3 +554,4 @@ sbuf用一种循环的方式去读写
 
 TODO:
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
+- 宏展开比循环少多少指令？
