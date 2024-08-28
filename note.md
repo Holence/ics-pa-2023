@@ -72,20 +72,23 @@
 AM的五个模块：
 
 - TRM所需的最简单的运行时环境 —— PA2.3
-  - init，`start.S`，具体做了啥❓
-  - halt，客户程序的`main()`会有个返回值，这个返回值会在`ebreak`的时候被nemu捕获，nemu根据值作出相应的处理（PA2中就是退出，Good/Bad Trap）
-    > 用riscv64-linux-gnu-gcc的输出也能说明这点，单纯的程序文件的机器码并不包含ebreak，只有链接上运行环境的部分，才会有ebreak
+  - init，`start.S: _start()`，具体做了啥❓；halt，将客户程序`main()`的返回值，通过`ebreak`指令让nemu终止（PA2中就是退出，Good/Bad Trap）
+    > gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`和`ebreak`，这些都是运行环境（操作系统）附加的东西
     >
     > ```bash
     > cd /am-kernels/tests/cpu-tests
     > 
-    > # 仅仅编译单个文件到汇编
-    > riscv64-linux-gnu-gcc tests/dummy.c -S dummy.s
+    > # 仅输出汇编
+    > gcc -S tests/dummy.c -o dummy.s
+    > # 或输出机器码
+    > gcc -c tests/dummy.c -o dummy.o
+    > objdump -d dummy.o
     > # 发现里面没有ebreak
+    > # dummy.o是不能被操作系统运行的
     > 
     > # 编译整个可执行文件
-    > riscv64-linux-gnu-gcc tests/dummy.c -o dummy
-    > riscv64-linux-gnu-objdump -d dummy > dump.txt
+    > gcc tests/dummy.c -o dummy
+    > objdump -d dummy
     > # 发现在_start()函数中有ebreak，这并不是main()函数
     > ```
   - 一些通用（ISA架构无关）的库函数
