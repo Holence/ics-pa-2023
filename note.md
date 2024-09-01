@@ -554,7 +554,7 @@ cte_init(simple_trap);
 
 yield();
 // 客户程序触发自陷 EVENT_YIELD
-// 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后
+// 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据mcause进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
 ```
 
@@ -602,9 +602,15 @@ __am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mod
 > [!TIP]
 > 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令），不过诡异的是等很长一段时间后，连续地输出`y`
 >
-> 因为目前是运行完`for (volatile int i = 0; i < 10000000; i++);`后，`yield()`里`ecall`，然后`mret`出来又到了`ecall`，从而`ecall`，`ecall`，`ecall`……
+> 现在的状况是运行完`for (volatile int i = 0; i < 10000000; i++);`后，`yield()`里`ecall`，然后`mret`出来又到了`ecall`，从而`ecall`，`ecall`，`ecall`……
 >
 > 下一小节里修这个bug
+
+### 恢复上下文
+
+> 事实上, 自陷只是其中一种异常类型. 有一种故障类异常, 它们返回的PC和触发异常的PC是同一个, 例如缺页异常, 在系统将故障排除后, 将会重新执行相同的指令进行重试, 因此异常返回的PC无需加4. 所以根据异常类型的不同, 有时候需要加4, 有时候则不需要加.
+
+作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，也就是相当于am）中，根据Trap的不同类型，修改`mepc`为正确的值。
 
 # 二周目问题
 
