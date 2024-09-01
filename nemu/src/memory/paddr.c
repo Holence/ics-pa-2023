@@ -57,7 +57,7 @@ word_t paddr_read(paddr_t addr, int len) {
     word_t data = pmem_read(addr, len);
 
 #ifdef CONFIG_MTRACE
-    log_write("Memory Read: " FMT_PADDR " -> " FMT_WORD "\n", addr, data);
+    _Log("Memory Read: " FMT_PADDR " -> " FMT_WORD "\n", addr, data);
 #endif
 
     return data;
@@ -72,7 +72,7 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     pmem_write(addr, len, data);
 
 #ifdef CONFIG_MTRACE
-    log_write("Memory Write: " FMT_PADDR " -> " FMT_WORD "\n", addr, data);
+    _Log("Memory Write: " FMT_PADDR " -> " FMT_WORD "\n", addr, data);
 #endif
 
     return;

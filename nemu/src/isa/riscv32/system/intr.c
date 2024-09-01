@@ -19,6 +19,10 @@ word_t isa_raise_intr(word_t cause, vaddr_t epc) {
   /* Trigger an interrupt/exception with ``cause''.
    * Then return the address of the interrupt/exception vector.
    */
+
+#ifdef CONFIG_ETRACE
+  _Log("Trap [" FMT_WORD "] : %d\n", epc, cause);
+#endif
   cpu.csr[mepc] = epc;
   cpu.csr[mcause] = cause;
   // cpu.csr[mstatus] = ?;
