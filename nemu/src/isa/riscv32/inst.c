@@ -150,10 +150,15 @@ static int decode_exec(Decode *s) {
   // csr
   INSTPAT("???????????? ????? 001 ????? 1110011", csrrw, I, {
     if (rd != 0) {
-      word_t temp = csr(imm);
-      gpr(rd) = temp;
+      gpr(rd) = csr(imm);
     }
-    csr(imm) = rs1;
+    csr(imm) = src1;
+  });
+  INSTPAT("???????????? ????? 010 ????? 1110011", csrrs, I, {
+    gpr(rd) = csr(imm);
+    if (rs1 != 0) {
+      csr(imm) = csr(imm) | src1;
+    }
   });
 
   // S-Type
@@ -182,7 +187,11 @@ static int decode_exec(Decode *s) {
   );
 
   // System（其实也是I-Type，但不需要进行decode_operand解析，就算作None-Type吧）
-  // INSTPAT("000000000000 00000 000 00000 1110011", ecall, N, ); // ecall
+  INSTPAT("000000000000 00000 000 00000 1110011", ecall, N, s->dnpc = isa_raise_intr(11, s->pc));
+  INSTPAT("001100000010 00000 000 00000 1110011", mret, N, {
+    // csr(mstatus) = ?;
+    s->dnpc = csr(mepc);
+  });
   INSTPAT("000000000001 00000 000 00000 1110011", ebreak, N, NEMUTRAP(s->pc, gpr(10))); // gpr(10) is $a0
 
   // None-Type

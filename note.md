@@ -72,7 +72,10 @@
 AM的五个模块：
 
 - TRM所需的最简单的运行时环境 —— PA2.3
-  - init，`start.S: _start()`，具体做了啥❓；halt，将客户程序`main()`的返回值，通过`ebreak`指令让nemu终止（PA2中就是退出，Good/Bad Trap）
+  - init，`start.S: _start()`，具体做了啥❓
+    
+    halt，将客户程序`main()`的返回值，约定使用`a0`寄存器传返回值，通过`ebreak`指令让nemu终止，并将传入的返回值作为`nemu_state.halt_ret`，作为判断`Good/Bad Trap`的依据，最后退出nemu。
+    
     > gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`和`ebreak`，这些都是运行环境（操作系统）附加的东西
     >
     > ```bash
@@ -83,7 +86,7 @@ AM的五个模块：
     > # 或输出机器码
     > gcc -c tests/dummy.c -o dummy.o
     > objdump -d dummy.o
-    > # 发现里面没有ebreak
+    > # 发现里面没有_start()和ebreak
     > # dummy.o是不能被操作系统运行的
     > 
     > # 编译整个可执行文件
@@ -94,6 +97,7 @@ AM的五个模块：
   - 一些通用（ISA架构无关）的库函数
 - IOE (I/O Extension) 访问外设的接口 —— PA2.5
 - CTE (Context Extension) 上下文扩展
+  - `ecall`，约定使用`a7`寄存器传参
 - VME (Virtual Memory Extension) 虚存扩展
 - MPE (Multi-Processor Extension) 多处理器扩展
 
@@ -554,7 +558,28 @@ yield();
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
 ```
 
-在nemu中实现csr寄存器的定义，以及csr的基础指令`CSRRW`，以及中断相关的指令`ecall`和`mret`
+客户程序用am中的接口调用ecall，让nemu定向到一个am中写死的__am_asm_trap，再由__am_irq_handle跑到用户自定义的simple_trap，最后用mret回到原来的地方。
+
+> 1.6. Exceptions, Traps, and Interrupts
+> We use the term "exception" to refer to an unusual condition occurring at run time associated with an instruction in the current RISC-V hart. 
+> We use the term "interrupt" to refer to an external asynchronous event that may cause a RISC-V hart to experience an unexpected transfer of control. 
+> We use the term "trap" to refer to the transfer of control to a trap handler caused by either an exception or an interrupt.
+
+所以目前做的部分属于exception
+
+### 实现异常响应机制
+
+在nemu中实现csr寄存器的定义，以及csr的基础指令`CSRRW`、`CSRRS`，以及中断相关的指令`ecall`和`mret`。
+
+ecall中mcause不知道应该设为啥。用spike进行difftest，可以看到`__am_asm_trap`中进行`csrr t0,mcause`的时候出现了不匹配，它说正确的`t0`（也就是`mcause`）应该是`0x0000000b`（十进制是11）。
+
+再看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个，看来却是如此。
+
+![mcause](./img/mcause.png)
+
+![exception_code](./img/exception_code.png)
+
+记得要再nemu中找个地方初始化`mstatus`为0x1800
 
 # 二周目问题
 

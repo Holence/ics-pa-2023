@@ -152,6 +152,8 @@ $(DST_DIR)/%.o: %.cpp
 $(DST_DIR)/%.o: %.S
 	@mkdir -p $(dir $@) && echo + AS $<
 	@$(AS) $(ASFLAGS) -c -o $@ $(realpath $<)
+# gcc preprocessing file, 方便理解那些看不懂的宏展开
+	@$(AS) $(CFLAGS) -E -MF /dev/null $<  > $(basename $@).i
 
 ### Rule (recursive make): build a dependent library (am, klib, ...)
 ### cd abstract-machine/am and run make archive

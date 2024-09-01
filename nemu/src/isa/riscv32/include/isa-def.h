@@ -24,6 +24,11 @@ typedef struct {
   vaddr_t pc;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
 
+#define mstatus 0x300
+#define mtvec 0x305
+#define mepc 0x341
+#define mcause 0x342
+
 // decode
 typedef struct {
   union {

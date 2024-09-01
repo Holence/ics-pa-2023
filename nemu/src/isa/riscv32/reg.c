@@ -27,8 +27,13 @@ void isa_reg_display() {
   for (int i = 0; i < ARRLEN(regs); i++) {
     printf("%-8s  " FMT_WORD "  %d\n", regs[i], gpr(i), gpr(i));
   }
+  printf("%-8s  " FMT_WORD "  %d\n", "mstatus", csr(mstatus), csr(mstatus));
+  printf("%-8s  " FMT_WORD "  %d\n", "mtvec", csr(mtvec), csr(mtvec));
+  printf("%-8s  " FMT_WORD "  %d\n", "mepc", csr(mepc), csr(mepc));
+  printf("%-8s  " FMT_WORD "  %d\n", "mcause", csr(mcause), csr(mcause));
 }
 
+// 打印gpr，暂时没写打印csr的功能
 word_t isa_reg_str2val(const char *s, bool *success) {
   *success = false;
   // pc
