@@ -595,6 +595,17 @@ ecall中mcause不知道应该设为啥。用spike进行difftest，可以看到`_
 > [!TIP]
 > 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令）到`AM Panic: Unhandled event`
 
+### 事件分发
+
+__am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mode`），分配`ev.event`
+
+> [!TIP]
+> 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令），不过诡异的是等很长一段时间后，连续地输出`y`
+>
+> 因为目前是运行完`for (volatile int i = 0; i < 10000000; i++);`后，`yield()`里`ecall`，然后`mret`出来又到了`ecall`，从而`ecall`，`ecall`，`ecall`……
+>
+> 下一小节里修这个bug
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
