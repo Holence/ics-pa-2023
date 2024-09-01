@@ -5,6 +5,11 @@
 static Context *(*user_handler)(Event, Context *) = NULL;
 
 Context *__am_irq_handle(Context *c) {
+  // 测试Context结构体定义的正确性
+  // uintptr_t *p = c->gpr;
+  // for (int i = 0; i < 32 + 3; i++) {
+  //   printf("%d\n", *(p++));
+  // }
   if (user_handler) {
     Event ev = {0};
     switch (c->mcause) {

@@ -549,12 +549,12 @@ sbuf用一种循环的方式去读写
 Context *simple_trap(Event ev, Context *ctx); // 可自定义的 user_handler
 
 cte_init(simple_trap);
-// 设置 exception entry 地址: asm volatile("csrw mtvec, %0" : : "r"(__am_asm_trap));
-// 设置 user_handler
+// 设置 exception entry 地址: asm volatile("csrw mtvec, %0" : : "r"(__am_asm_trap)); （用mtvec寄存器存储）
+// 设置 __am_asm_trap 中后续会调用的 user_handler
 
 yield();
-// 客户程序触发中断 EVENT_YIELD（自陷 self trap）
-// yield()中使用ecall指令，进入nemu内部执行（mtvec指向的）中断处理函数
+// 客户程序触发自陷 EVENT_YIELD
+// 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
 ```
 
@@ -580,6 +580,20 @@ ecall中mcause不知道应该设为啥。用spike进行difftest，可以看到`_
 ![exception_code](./img/exception_code.png)
 
 记得要再nemu中找个地方初始化`mstatus`为0x1800
+
+> [!TIP]
+> 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令）到`AM Panic: Unhandled event`
+
+### 保存上下文
+
+`trap.S`同样是看不懂的宏，在Makefile里添加输出preprocess的结果，就能看懂了。
+
+就是开了`(32+3)*4 bytes`的栈空间新建了一个Context结构体，用于传入`__am_irq_handle`。低地址处为Context结构体的开头，高地址处为结尾，可以看到先存了gpr（跳过了`x0`和`sp`），然后存`mcause`，`mstatus`，`mepc`。要求“将地址空间信息与0号寄存器共用存储空间”，也就是哪个`void* pdir`（这东西在`abstract-machine/am/src/riscv/nemu/vme.c`中会从Context结构体中被索要的），因为是地址数据，长度也是4个字节，那就用个union把`gpr[32]`和`pdir`放在一起就行了，存取`pdir`的时候访问的就是`gpr[0]`的格子。
+
+最后记得验证：用nemu的sdb在__am_asm_trap处设置断点，打印所有寄存器（包括csr）的值，与__am_irq_handle中printf出来的所有信息，进行比较。
+
+> [!TIP]
+> 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令）到`AM Panic: Unhandled event`
 
 # 二周目问题
 

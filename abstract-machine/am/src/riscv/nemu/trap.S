@@ -15,6 +15,7 @@
 #define REGS_LO16(f) \
       f( 1)       f( 3) f( 4) f( 5) f( 6) f( 7) f( 8) f( 9) \
 f(10) f(11) f(12) f(13) f(14) f(15)
+
 #ifndef __riscv_e
 #define REGS_HI16(f) \
                                     f(16) f(17) f(18) f(19) \

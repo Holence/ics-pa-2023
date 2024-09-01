@@ -8,9 +8,12 @@
 #endif
 
 struct Context {
-  // TODO: fix the order of these members to match trap.S
-  uintptr_t mepc, mcause, gpr[NR_REGS], mstatus;
-  void *pdir;
+  union {
+    uintptr_t gpr[NR_REGS];
+    // 将地址空间信息与0号寄存器共用存储空间, 反正0号寄存器的值总是0, 也不需要保存和恢复
+    void *pdir;
+  };
+  uintptr_t mcause, mstatus, mepc;
 };
 
 #ifdef __riscv_e
