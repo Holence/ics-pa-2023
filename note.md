@@ -541,6 +541,21 @@ sbuf用一种循环的方式去读写
 
 最好还是能先看看客户程序、操作系统调用时的接口，再去AM里写实现
 
+```c
+Context *simple_trap(Event ev, Context *ctx); // 可自定义的 user_handler
+
+cte_init(simple_trap);
+// 设置 exception entry 地址: asm volatile("csrw mtvec, %0" : : "r"(__am_asm_trap));
+// 设置 user_handler
+
+yield();
+// 客户程序触发中断 EVENT_YIELD（自陷 self trap）
+// yield()中使用ecall指令，进入nemu内部执行（mtvec指向的）中断处理函数
+// 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
+```
+
+在nemu中实现csr寄存器的定义，以及csr的基础指令`CSRRW`，以及中断相关的指令`ecall`和`mret`
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?

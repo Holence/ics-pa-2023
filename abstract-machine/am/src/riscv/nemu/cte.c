@@ -25,6 +25,12 @@ extern void __am_asm_trap(void);
 bool cte_init(Context *(*handler)(Event, Context *)) {
   // initialize exception entry
   asm volatile("csrw mtvec, %0" : : "r"(__am_asm_trap));
+  // 实际编译出来是 csrw mtvec, a4（a4里面存着__am_asm_trap的地址）
+  // 这串二进制为 0x30571073
+  // 因为伪指令 CSRW csr, rs1 == CSRRW x0, csr, rs1
+  // [   mtvec  ] [rs1] [funct3]  [rd] [opcode]
+  // 001100000101 01110   001    00000 1110011
+  // 说明在汇编中写mtvec这个名称的话，就会自动转换为这个csr寄存器的地址，也就是0x305
 
   // register event handler
   user_handler = handler;
@@ -44,9 +50,11 @@ void yield() {
 #endif
 }
 
+// 是否开中断
 bool ienabled() {
   return false;
 }
 
+// 设置中断开关
 void iset(bool enable) {
 }
