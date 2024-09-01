@@ -553,6 +553,7 @@ cte_init(simple_trap);
 // 设置 __am_asm_trap 中后续会调用的 user_handler
 
 yield();
+// ❓asm volatile("li a7, -1; ecall"); 传入的参数a7怎么没用啊？不是用a7传入cause吗？
 // 客户程序触发自陷 EVENT_YIELD
 // 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据mcause进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
