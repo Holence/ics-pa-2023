@@ -137,7 +137,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
   return char_written;
 }
 
-#define MAX_PRINT_LEN 1024
+#define MAX_PRINT_LEN 2048
 static char buf[MAX_PRINT_LEN];
 int printf(const char *fmt, ...) {
   va_list ap;
