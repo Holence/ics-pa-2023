@@ -89,7 +89,7 @@ AM的五个模块：
     > # 发现里面没有_start()和ebreak
     > # dummy.o是不能被操作系统运行的
     > 
-    > # 编译整个可执行文件
+    > # 编译（并链接运行环境），生成可执行文件
     > gcc tests/dummy.c -o dummy
     > objdump -d dummy
     > # 发现在_start()函数中有ebreak，这并不是main()函数
@@ -321,7 +321,7 @@ if (nemu_state.state != NEMU_END) {
 >
 > 直到客户程序发出ebreak的指令而`NEMU_END`（要么是正常运行结束`ret==0`，要么是中途异常退出`ret!=0`），或者nemu出现内部错误而`NEMU_ABORT`，结束`execute()`的循环，退出nemu。
 
-## Makefile解析
+## Makefile解析: am-kernels on abstract-machine
 
 运行am-kernels中测试的时候，`make ARCH=riscv32-nemu ALL=dummy run`会生成`Makefile.dummy`，其中的内容为
 
@@ -365,7 +365,7 @@ nemu是纯“硬件”的裸机，am-kernels里的程序是普通用户写出来
 
 所以就需要一个抽象层abstract-machine
 
-nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。也就是说客户程序通过abstract-machine的加持，就可以跑在任意一种CPU上（物理世界的CPU也性）。
+nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。也就是说客户程序通过abstract-machine的加持，就可以跑在任意一种CPU上（物理世界的CPU也行）。
 
 ## 2.4
 
@@ -613,6 +613,22 @@ __am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mod
 
 作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，也就是相当于am）中，根据Trap的不同类型，修改`mepc`为正确的值。
 
+## 3.3
+
+## Makefile解析: navy on nanos
+
+navy-apps
+- 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
+- `make install`❓
+
+nanos-lite，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
+
+navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos-lite的loader程序，按照elf文件的标准，加载进入内存，再运行。
+
+❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy-apps程序，需要额外做哪些工作才能在nanos-lite运行？
+
+操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。而navy-apps是在nanos-lite监管下运行的另一个程序，两者间隔着运行，像跳舞一样。
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
@@ -630,3 +646,4 @@ __am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mod
 TODO:
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
 - 宏展开比循环少多少指令？
+- note.md中检查所有提到“操作系统”的语句严谨性
