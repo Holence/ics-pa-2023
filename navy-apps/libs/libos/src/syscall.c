@@ -6,7 +6,7 @@
 #include "syscall.h"
 
 // helper macros
-#define _concat(x, y) x ## y
+#define _concat(x, y) x##y
 #define concat(x, y) _concat(x, y)
 #define _args(n, list) concat(_arg, n) list
 #define _arg0(a0, ...) a0
@@ -17,7 +17,7 @@
 #define _arg5(a0, a1, a2, a3, a4, a5, ...) a5
 
 // extract an argument from the macro array
-#define SYSCALL  _args(0, ARGS_ARRAY)
+#define SYSCALL _args(0, ARGS_ARRAY)
 #define GPR1 _args(1, ARGS_ARRAY)
 #define GPR2 _args(2, ARGS_ARRAY)
 #define GPR3 _args(3, ARGS_ARRAY)
@@ -26,38 +26,63 @@
 
 // ISA-depedent definitions
 #if defined(__ISA_X86__)
-# define ARGS_ARRAY ("int $0x80", "eax", "ebx", "ecx", "edx", "eax")
+#define ARGS_ARRAY ("int $0x80", "eax", "ebx", "ecx", "edx", "eax")
 #elif defined(__ISA_MIPS32__)
-# define ARGS_ARRAY ("syscall", "v0", "a0", "a1", "a2", "v0")
+#define ARGS_ARRAY ("syscall", "v0", "a0", "a1", "a2", "v0")
 #elif defined(__riscv)
 #ifdef __riscv_e
-# define ARGS_ARRAY ("ecall", "a5", "a0", "a1", "a2", "a0")
+#define ARGS_ARRAY ("ecall", "a5", "a0", "a1", "a2", "a0")
 #else
-# define ARGS_ARRAY ("ecall", "a7", "a0", "a1", "a2", "a0")
+#define ARGS_ARRAY ("ecall", "a7", "a0", "a1", "a2", "a0")
 #endif
 #elif defined(__ISA_AM_NATIVE__)
-# define ARGS_ARRAY ("call *0x100000", "rdi", "rsi", "rdx", "rcx", "rax")
+#define ARGS_ARRAY ("call *0x100000", "rdi", "rsi", "rdx", "rcx", "rax")
 #elif defined(__ISA_X86_64__)
-# define ARGS_ARRAY ("int $0x80", "rdi", "rsi", "rdx", "rcx", "rax")
+#define ARGS_ARRAY ("int $0x80", "rdi", "rsi", "rdx", "rcx", "rax")
 #elif defined(__ISA_LOONGARCH32R__)
-# define ARGS_ARRAY ("syscall 0", "a7", "a0", "a1", "a2", "a0")
+#define ARGS_ARRAY ("syscall 0", "a7", "a0", "a1", "a2", "a0")
 #else
 #error _syscall_ is not implemented
 #endif
 
 intptr_t _syscall_(intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
-  register intptr_t _gpr1 asm (GPR1) = type;
-  register intptr_t _gpr2 asm (GPR2) = a0;
-  register intptr_t _gpr3 asm (GPR3) = a1;
-  register intptr_t _gpr4 asm (GPR4) = a2;
-  register intptr_t ret asm (GPRx);
-  asm volatile (SYSCALL : "=r" (ret) : "r"(_gpr1), "r"(_gpr2), "r"(_gpr3), "r"(_gpr4));
+
+  /* 宏展开就是这些
+   * register intptr_t _gpr1 asm("a7") = type;
+   * register intptr_t _gpr2 asm("a0") = a0;
+   * register intptr_t _gpr3 asm("a1") = a1;
+   * register intptr_t _gpr4 asm("a2") = a2;
+   * register intptr_t ret asm("a0"); // ecall的返回值放到a0中
+   * asm volatile("ecall"
+   *              : "=r"(ret)
+   *              : "r"(_gpr1), "r"(_gpr2), "r"(_gpr3), "r"(_gpr4));
+   * return ret;
+   *
+   * 到汇编就是这些
+   * 830000cc <_syscall_>:
+   * 830000cc:	00050893          	mv	a7,a0   第0个参数，也就是intptr_t type，放到a7中
+   * 830000d0:	00058513          	mv	a0,a1   第1个参数，也就是intptr_t a0，放到a0中
+   * 830000d4:	00060593          	mv	a1,a2   第2个参数，也就是intptr_t a1，放到a1中
+   * 830000d8:	00068613          	mv	a2,a3   第3个参数，也就是intptr_t a2，放到a2中
+   * 830000dc:	00000073          	ecall
+   * 830000e0:	00008067          	ret
+   */
+
+  // type是ecall的类型，放在a7中
+  // a0-a2是三个参数
+  register intptr_t _gpr1 asm(GPR1) = type;
+  register intptr_t _gpr2 asm(GPR2) = a0;
+  register intptr_t _gpr3 asm(GPR3) = a1;
+  register intptr_t _gpr4 asm(GPR4) = a2;
+  register intptr_t ret asm(GPRx);
+  asm volatile(SYSCALL : "=r"(ret) : "r"(_gpr1), "r"(_gpr2), "r"(_gpr3), "r"(_gpr4));
   return ret;
 }
 
 void _exit(int status) {
   _syscall_(SYS_exit, status, 0, 0);
-  while (1);
+  while (1)
+    ;
 }
 
 int _open(const char *path, int flags, mode_t mode) {
@@ -94,7 +119,7 @@ int _gettimeofday(struct timeval *tv, struct timezone *tz) {
   return 0;
 }
 
-int _execve(const char *fname, char * const argv[], char *const envp[]) {
+int _execve(const char *fname, char *const argv[], char *const envp[]) {
   _exit(SYS_execve);
   return 0;
 }

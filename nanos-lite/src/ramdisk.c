@@ -4,6 +4,9 @@ extern uint8_t ramdisk_start;
 extern uint8_t ramdisk_end;
 #define RAMDISK_SIZE ((&ramdisk_end) - (&ramdisk_start))
 
+// nanos-os是宏内核，地址为一整块
+// 宏内核（monolithic kernel）和微内核（micro kernel）的区别
+// https://stackoverflow.com/questions/4537850/what-is-difference-between-monolithic-and-micro-kernel
 /* The kernel is monolithic, therefore we do not need to
  * translate the address `buf' from the user process to
  * a physical one, which is necessary for a microkernel.

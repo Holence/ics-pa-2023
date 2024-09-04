@@ -12,6 +12,7 @@ INC_PATH += include $(NAVY_HOME)/libs/libc/include
 endif
 
 ./src/resources.S: $(RAMDISK_FILE)
+# change file timestamps
 	@touch $@
 
 ifeq ($(HAS_NAVY),)
@@ -26,6 +27,7 @@ endif
 
 update:
 	$(MAKE) -s -C $(NAVY_HOME) ISA=$(ISA) ramdisk
+# make symbolic links between files
 	@ln -sf $(NAVY_HOME)/build/ramdisk.img $(RAMDISK_FILE)
 	@ln -sf $(NAVY_HOME)/build/ramdisk.h src/files.h
 	@ln -sf $(NAVY_HOME)/libs/libos/src/syscall.h src/syscall.h
