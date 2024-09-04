@@ -14,21 +14,17 @@ Context *__am_irq_handle(Context *c) {
     Event ev = {0};
     switch (c->mcause) {
 
+    // ecall
     case 11:
-      // ecall 根据a7跳转
-      switch (c->gpr[17]) {
-
-      // yield
-      case -1:
+      // 根据a7跳转
+      if (c->GPR1 == 0xFFFFFFFF) {
+        // yield 中赋值的 -1
         ev.event = EVENT_YIELD;
-        c->mepc += 4;
-        break;
-
-      default:
-        ev.event = EVENT_ERROR;
-        break;
+      } else {
+        // syscall
+        ev.event = EVENT_SYSCALL;
       }
-
+      c->mepc += 4;
       break;
 
     default:

@@ -629,19 +629,19 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 
 ## Makefile解析: navy on nanos
 
-navy-apps
+navy
 - 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
 - `make install`❓
 
 nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
 
-navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos的loader程序，按照elf文件的标准，加载进入内存，再运行。
+navy编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos的loader程序，按照elf文件的标准，加载进入内存，再运行。
 
-❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy-apps程序，需要额外做哪些工作才能在nanos运行？
+❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy程序，需要额外做哪些工作才能在nanos运行？
 
 操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
 
-而PA3批处理系统中，navy-apps不过就是nanos中调用的函数，navy程序的函数栈直接就长在nanos的栈之上。❓PA3后面也是这样吗
+而PA3批处理系统中，navy不过就是nanos中调用的函数，navy程序的函数栈直接就长在nanos的栈之上。❓PA3后面也是这样吗
 
 ## 3.3
 
@@ -650,7 +650,7 @@ navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬�
 直接把程序装入到elf segment的vaddr指定的地方，也就是0x83000000往高的区块。
 
 > [!TIP]
-> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从0x8001C000往上的，而am中klib里`malloc()`的实现是没有任何安全检查的，所以目前navy-apps的程序运行`malloc()`可能会不安全❓
+> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从0x8001C000往上的，而am中klib里`malloc()`的实现是没有任何安全检查的，所以目前navy的程序运行`malloc()`可能会不安全❓
 >
 > 在PA4.2后会讨论这个问题
 
@@ -669,7 +669,14 @@ navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬�
 >
 > 应该不能吧。某个程序调用`halt()`不就把nemu干死了吗，操作系统还活什么
 
+### 系统调用
 
+a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
+
+进入nanos的do_event后根据`ev.event`分配，其中`do_syscall`要继续根据`a7`的值进行分配。
+
+> [!TIP]
+> navy程序能调用的接口只有`_syscall_`，所以调用`yield`其实涉及到两层嵌套调用ecall：首先`li a7, 1; ecall`到`do_event`再到`do_syscall`，这里面再调用了am中的`yield()`函数，就再次`li a7, -1; ecall`，再次进入`do_event`，然后逐层退出。（挺绕的，就是为了统一为系统调用的接口）
 
 # 二周目问题
 
