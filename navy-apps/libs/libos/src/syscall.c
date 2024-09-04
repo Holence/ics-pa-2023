@@ -30,6 +30,8 @@
 #elif defined(__ISA_MIPS32__)
 #define ARGS_ARRAY ("syscall", "v0", "a0", "a1", "a2", "v0")
 #elif defined(__riscv)
+// __riscv 是 predefined compiler macro
+// 可以打印看看 riscv64-linux-gnu-gcc -dM -E - < /dev/null | grep riscv
 #ifdef __riscv_e
 #define ARGS_ARRAY ("ecall", "a5", "a0", "a1", "a2", "a0")
 #else

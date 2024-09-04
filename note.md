@@ -535,11 +535,21 @@ sbuf用一种循环的方式去读写
 
 开始进入原始级操作系统的世界！
 
-❓下面的说法待核查
-
-为了让操作系统作为奶妈，客户程序作为宝宝，客户程序将只被允许执行非特权指令(unprivileged)，而操作系统才能执行特权指令(privileged)。硬件上需要一个保存mode的“状态寄存器”，规定只有当状态寄存器表示处于特权模式时，才能运行特权指令。客户程序需要调用操作系统的某个函数，也就是Trap❓System Call❓，修改状态寄存器为特权模式，再去执行特权指令。
-
-这个系统的函数，广义上为Trap（包括Exception异常、System Call系统调用、Interrupt中断），通过传入index（Trap的原因），查表得到某个Trap的函数。
+> 为了让操作系统作为奶妈，客户程序作为宝宝，客户程序将只被允许执行非特权指令(unprivileged)，而操作系统才能执行特权指令(privileged)。硬件上需要一个保存mode的“状态寄存器”，规定只有当状态寄存器表示处于特权模式时，才能运行特权指令。
+> 
+> 这三者的工作方式都完全相同❓，可以统称为Trap。修改状态寄存器为特权模式、保存当前cpu的状态，看Trap的原因（类型mcause），让PC跳转到不同的Trap Handler
+> 
+> - 中断：时钟中断造就了分时并发，I/O中断让CPU不用等待龟速的I/O设备
+> 
+>   待细节❓
+> 
+> - 系统调用：让客户程序乖乖地等待被服务
+>   
+>   客户程序需要调用操作系统的各种系统调用函数，这些系统调用函数会通过cpu的自陷指令（比如risc-v中的ecall），召唤类型为Syscall的Trap Handler，并附加上不同的syscall number（比如risc-v中的a7寄存器），让Syscall的Trap Handler根据syscall number再跳转到操作系统中所对应的各种处理函数。
+> 
+> - 异常：计算出错，让客户程序crash，而不是整个机器crash
+> 
+>   待细节❓
 
 ## 3.2
 
@@ -553,37 +563,31 @@ cte_init(simple_trap);
 // 设置 __am_asm_trap 中后续会调用的 user_handler
 
 yield();
-// 客户程序调用am中的yield() 触发自陷 EVENT_YIELD
-// asm volatile("li a7, 11; ecall"); 这里是触发自陷时的ecall调用，这种情况属于environment-call-from-M-mode，需要把a7设置为11，理由见下
-// 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据mcause进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
+// 客户程序调用am中的yield()，这是运行环境提供的一种系统调用❓
+// asm volatile("li a7, -1; ecall"); 调用自陷指令ecall，触发系统调用这种trap handler，a7是传入的系统调用syscall number，这里约定yield为-1，之后根据syscall number跳转的操作系统中不同函数
+// 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据a7进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
 ```
 
-> 1.6. Exceptions, Traps, and Interrupts
+> [!IMPORTANT]
+> 注意区分`mcause`和`a7`！！
 >
-> We use the term "exception" to refer to an unusual condition occurring at run time associated with an instruction in the current RISC-V hart. 
+> `mcause`是trap的种类，在trap之后就被外部或内部硬件设置好的值，处理trap的时候用`mcause`来引导`pc`到不同的trap handler。分为中断和非中断，中断是指外界造成的异步事件（时钟中断、IO中断），非中断是由代码执行造成的同步时间（系统调用、异常）。
 >
-> We use the term "interrupt" to refer to an external asynchronous event that may cause a RISC-V hart to experience an unexpected transfer of control. 
->
-> We use the term "trap" to refer to the transfer of control to a trap handler caused by either an exception or an interrupt.
+> `a7`是系统调用这种trap handler的一个参数，叫syscall number。`ecall`自陷指令会将PC引导到trap类型为syscall的trap handler，`a7`用来引导这个trap handler跳转到不同的处理函数，`a0-a5`是传入函数的参数
 
-所以目前做的部分属于exception
+> 看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个
+> 
+> ![mcause](./img/mcause.png)
+> 
+> ![exception_code](./img/exception_code.png)
 
 ### 实现异常响应机制
 
 在nemu中实现csr寄存器的定义，以及csr的基础指令`CSRRW`、`CSRRS`，以及中断相关的指令`ecall`和`mret`。
 
 ecall
-- 把`mcause`设置为寄存器`a7`的值。触发自陷的时候，也就是`yeild()`函数里进行`ecall`前，应该把`a7`设置为11。
-  > 看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个，看来却是如此。
-  > 
-  > ![mcause](./img/mcause.png)
-  > 
-  > ![exception_code](./img/exception_code.png)
-  > 
-  > 如果不相信，让`yield()`中`a7`不为11，用spike进行difftest，可以看到`__am_asm_trap`中进行`csrr t0,mcause`的时候出现了不匹配，它说正确的`t0`（也就是`mcause`）应该是`0x0000000b`（十进制是11）。
-  >
-  > 但为什么spike不管`a7`为多少，mcause都是11？可能是因为`/nemu/tools/spike-diff/repo/build/ecall.cc`和`/nemu/tools/spike-diff/repo/riscv/insns/ecall.h`中是按`STATE.prv==PRV_M`，结果就`trap_machine_ecall()`了❓
+- 把`mcause`设置11
 - 把当前ecall这句指令的地址写入`mepc`寄存器
 - pc设为`mtvec`寄存器的值（`cte_init`在最初已经将`mtvec`设置为`__am_asm_trap`的地址了）
 
@@ -608,7 +612,7 @@ mret
 
 ### 事件分发
 
-__am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mode`），分配`ev.event`
+__am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`，否则`ev.event = EVENT_ERROR`
 
 > [!TIP]
 > 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令），不过诡异的是等很长一段时间后，连续地输出`y`
@@ -621,7 +625,7 @@ __am_irq_handle中判断`c->mcause`为11（上文的`environment-call-from-M-mod
 
 > 事实上, 自陷只是其中一种异常类型. 有一种故障类异常, 它们返回的PC和触发异常的PC是同一个, 例如缺页异常, 在系统将故障排除后, 将会重新执行相同的指令进行重试, 因此异常返回的PC无需加4. 所以根据异常类型的不同, 有时候需要加4, 有时候则不需要加.
 
-作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，也就是相当于am）中，根据Trap的不同类型，修改`mepc`为正确的值。
+作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，也就是相当于am）中，根据event的不同类型，修改`mepc`为正确的值。
 
 ## Makefile解析: navy on nanos
 
@@ -629,13 +633,15 @@ navy-apps
 - 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
 - `make install`❓
 
-nanos-lite，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
+nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
 
-navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos-lite的loader程序，按照elf文件的标准，加载进入内存，再运行。
+navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos的loader程序，按照elf文件的标准，加载进入内存，再运行。
 
-❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy-apps程序，需要额外做哪些工作才能在nanos-lite运行？
+❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy-apps程序，需要额外做哪些工作才能在nanos运行？
 
-操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。而navy-apps是在nanos-lite监管下运行的另一个程序，两者间隔着运行，像跳舞一样。
+操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
+
+而PA3批处理系统中，navy-apps不过就是nanos中调用的函数，navy程序的函数栈直接就长在nanos的栈之上。❓PA3后面也是这样吗
 
 ## 3.3
 
@@ -652,6 +658,18 @@ navy-apps编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬�
 > 需要把difftest关掉，不然看到spike说mcause应该为11❓
 >
 > 才能看到“一个未处理的4号事件”（system panic: Unhandled event ID = 4）
+
+
+### 操作系统的运行时环境
+
+> [!NOTE]
+> 系统调用的必要性
+>
+> 对于批处理系统来说, 系统调用是必须的吗? 如果直接把AM的API暴露给批处理系统中的程序, 会不会有问题呢?
+>
+> 应该不能吧。某个程序调用`halt()`不就把nemu干死了吗，操作系统还活什么
+
+
 
 # 二周目问题
 
@@ -671,3 +689,4 @@ TODO:
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
 - 宏展开比循环少多少指令？
 - note.md中检查所有提到“操作系统”的语句严谨性
+- 整理那些高级的c语言用法到笔记

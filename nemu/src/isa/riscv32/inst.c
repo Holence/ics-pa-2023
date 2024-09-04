@@ -187,7 +187,7 @@ static int decode_exec(Decode *s) {
   );
 
   // System（其实也是I-Type，但不需要进行decode_operand解析，就算作None-Type吧）
-  INSTPAT("000000000000 00000 000 00000 1110011", ecall, N, s->dnpc = isa_raise_intr(gpr(17), s->pc)); // a7寄存器的值作为cause
+  INSTPAT("000000000000 00000 000 00000 1110011", ecall, N, s->dnpc = isa_raise_intr(11, s->pc)); // mcause = 11 (Environment call from M-mode)
   INSTPAT("001100000010 00000 000 00000 1110011", mret, N, {
     // csr(mstatus) = ?;
     s->dnpc = csr(mepc);

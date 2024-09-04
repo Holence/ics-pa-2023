@@ -1,7 +1,9 @@
 #include <proc.h>
 #include <elf.h>
 
-#ifdef __LP64__ // gcc会自动设定的宏
+// predefined compiler macro
+// 可以打印看看 riscv64-linux-gnu-gcc -dM -E - < /dev/null | grep LP
+#ifdef __LP64__
 #define Elf_Ehdr Elf64_Ehdr
 #define Elf_Phdr Elf64_Phdr
 #else
