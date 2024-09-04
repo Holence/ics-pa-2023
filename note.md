@@ -57,7 +57,7 @@
 
 # （需要补习的）前置知识
 
-- RISC-V：PA2是unprivileged，CS61C就够用了。PA3涉及privilege。
+- RISC-V：PA2是unprivileged，CS61C就够用了。PA3涉及privilege，需要补习。
 - Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
 - ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[Notes](https://github.com/Holence/Notes/blob/main/OS/ELF.md)
 
@@ -553,17 +553,18 @@ cte_init(simple_trap);
 // 设置 __am_asm_trap 中后续会调用的 user_handler
 
 yield();
-// ❓asm volatile("li a7, -1; ecall"); 传入的参数a7怎么没用啊？不是用a7传入cause吗？
-// 客户程序触发自陷 EVENT_YIELD
+// 客户程序调用am中的yield() 触发自陷 EVENT_YIELD
+// asm volatile("li a7, 11; ecall"); 这里是触发自陷时的ecall调用，这种情况属于environment-call-from-M-mode，需要把a7设置为11，理由见下
 // 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据mcause进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
 ```
 
-客户程序用am中的接口调用ecall，让nemu定向到一个am中写死的__am_asm_trap，再由__am_irq_handle跑到用户自定义的simple_trap，最后用mret回到原来的地方。
-
 > 1.6. Exceptions, Traps, and Interrupts
+>
 > We use the term "exception" to refer to an unusual condition occurring at run time associated with an instruction in the current RISC-V hart. 
+>
 > We use the term "interrupt" to refer to an external asynchronous event that may cause a RISC-V hart to experience an unexpected transfer of control. 
+>
 > We use the term "trap" to refer to the transfer of control to a trap handler caused by either an exception or an interrupt.
 
 所以目前做的部分属于exception
@@ -572,15 +573,24 @@ yield();
 
 在nemu中实现csr寄存器的定义，以及csr的基础指令`CSRRW`、`CSRRS`，以及中断相关的指令`ecall`和`mret`。
 
-ecall中mcause不知道应该设为啥。用spike进行difftest，可以看到`__am_asm_trap`中进行`csrr t0,mcause`的时候出现了不匹配，它说正确的`t0`（也就是`mcause`）应该是`0x0000000b`（十进制是11）。
+ecall
+- 把`mcause`设置为寄存器`a7`的值。触发自陷的时候，也就是`yeild()`函数里进行`ecall`前，应该把`a7`设置为11。
+  > 看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个，看来却是如此。
+  > 
+  > ![mcause](./img/mcause.png)
+  > 
+  > ![exception_code](./img/exception_code.png)
+  > 
+  > 如果不相信，让`yield()`中`a7`不为11，用spike进行difftest，可以看到`__am_asm_trap`中进行`csrr t0,mcause`的时候出现了不匹配，它说正确的`t0`（也就是`mcause`）应该是`0x0000000b`（十进制是11）。
+  >
+  > 但为什么spike不管`a7`为多少，mcause都是11？可能是因为`/nemu/tools/spike-diff/repo/build/ecall.cc`和`/nemu/tools/spike-diff/repo/riscv/insns/ecall.h`中是按`STATE.prv==PRV_M`，结果就`trap_machine_ecall()`了❓
+- 把当前ecall这句指令的地址写入`mepc`寄存器
+- pc设为`mtvec`寄存器的值（`cte_init`在最初已经将`mtvec`设置为`__am_asm_trap`的地址了）
 
-再看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个，看来却是如此。
+mret
+- 恢复pc为`mepc`寄存器的值即可
 
-![mcause](./img/mcause.png)
-
-![exception_code](./img/exception_code.png)
-
-记得要再nemu中找个地方初始化`mstatus`为0x1800
+另外记得要再nemu中找个地方初始化`mstatus`为0x1800（通过difftest的报错也能看出来，但具体这个值是啥❓）
 
 > [!TIP]
 > 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令）到`AM Panic: Unhandled event`

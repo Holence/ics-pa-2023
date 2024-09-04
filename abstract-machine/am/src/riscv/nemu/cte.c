@@ -55,7 +55,8 @@ void yield() {
 #ifdef __riscv_e
   asm volatile("li a5, -1; ecall");
 #else
-  asm volatile("li a7, -1; ecall");
+  // 自陷的ecall调用，属于environment-call-from-M-mode，需要把a7设置为11
+  asm volatile("li a7, 11; ecall");
 #endif
 }
 
