@@ -128,6 +128,8 @@ $(APP): $(OBJS) libs
 	@$(LD) $(LDFLAGS) -o $@ $(WL)--start-group $(LINKAGE) $(WL)--end-group
 # objdump 
 	@$(OBJDUMP) -d $(APP) > $(APP).txt
+# copy to ramdisk.img
+	cp $(APP) ~/ics-pa-2023/nanos-lite/build/ramdisk.img
 
 ### Rule (archive): objects (`*.o`) -> `ARCHIVE.a` (ar)
 $(ARCHIVE): $(OBJS) libs

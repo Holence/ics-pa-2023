@@ -1,5 +1,19 @@
 #include <common.h>
 #include "syscall.h"
+
+int sys_write(int fd, void *buf, size_t count) {
+  int ret = 0;
+  if (fd == 1 || fd == 2) {
+    char *ptr = (char *)buf;
+    for (size_t i = 0; i < count; i++) {
+      putch(ptr[i]);
+      ret++;
+    }
+    return ret;
+  }
+  return -1; // error
+}
+
 void do_syscall(Context *c) {
   uintptr_t a[4];
   a[0] = c->GPR1; // a7
@@ -11,12 +25,18 @@ void do_syscall(Context *c) {
   switch (a[0]) {
 
   case SYS_exit:
-    halt(a[1]); // a0作为参数给halt
+    printf("halt(%d)\n", a[1]); // strace
+    halt(a[1]);                 // a0作为参数给halt
     break;
 
   case SYS_yield:
-    yield();     // 调用am中的yield()，然后还是会到do_event()中的case EVENT_YIELD
-    c->GPRx = 0; // 设置返回值a0为0
+    printf("yield()\n"); // strace
+    yield();             // 调用am中的yield()，然后还是会到do_event()中的case EVENT_YIELD
+    c->GPRx = 0;         // 设置返回值a0为0
+    break;
+
+  case SYS_write:
+    c->GPRx = sys_write(a[1], (void *)a[2], a[3]);
     break;
 
   default:

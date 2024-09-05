@@ -12,7 +12,7 @@ INC_PATH += include $(NAVY_HOME)/libs/libc/include
 endif
 
 ./src/resources.S: $(RAMDISK_FILE)
-# change file timestamps
+# if RAMDISK_FILE changed, then change file timestamps, rebuild nanos-lite
 	@touch $@
 
 ifeq ($(HAS_NAVY),)

@@ -97,7 +97,7 @@ AM的五个模块：
   - 一些通用（ISA架构无关）的库函数
 - IOE (I/O Extension) 访问外设的接口 —— PA2.5
 - CTE (Context Extension) 上下文扩展
-  - `ecall`，约定使用`a7`寄存器传参
+  - `ecall`，系统调用，约定使用`a7`寄存器传参
 - VME (Virtual Memory Extension) 虚存扩展
 - MPE (Multi-Processor Extension) 多处理器扩展
 
@@ -630,7 +630,7 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 ## Makefile解析: navy on nanos
 
 navy
-- 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
+- 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。从`_start()`开始，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
 - `make install`❓
 
 nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
@@ -676,7 +676,12 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 进入nanos的do_event后根据`ev.event`分配，其中`do_syscall`要继续根据`a7`的值进行分配。
 
 > [!TIP]
-> navy程序能调用的接口只有`_syscall_`，所以调用`yield`其实涉及到两层嵌套调用ecall：首先`li a7, 1; ecall`到`do_event`再到`do_syscall`，这里面再调用了am中的`yield()`函数，就再次`li a7, -1; ecall`，再次进入`do_event`，然后逐层退出。（挺绕的，就是为了统一为系统调用的接口）
+> navy程序需要通过`_syscall_`进行`yield`，其实涉及到两层嵌套调用ecall：首先`li a7, 1; ecall`到`do_event`再到`do_syscall`，这里面再调用了am中的`yield()`函数，就再次`li a7, -1; ecall`，再次进入`do_event`，然后逐层退出。（挺绕的，就是为了统一为系统调用的接口）
+
+### 标准输出
+
+> [!TIP]
+> 记得`/navy-apps/libs/libos/src/syscall.c`的`_write`也要返回正确的返回值。不然会发现`write()`可以正常工作，而`printf()`就只会打印第1个字符。
 
 # 二周目问题
 
