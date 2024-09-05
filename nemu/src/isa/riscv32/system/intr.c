@@ -15,6 +15,8 @@
 
 #include <isa.h>
 
+void ftrace_log(vaddr_t address, bool jump_in);
+
 word_t isa_raise_intr(word_t cause, vaddr_t epc) {
   /* Trigger an interrupt/exception with ``cause''.
    * Then return the address of the interrupt/exception vector.
@@ -25,7 +27,8 @@ word_t isa_raise_intr(word_t cause, vaddr_t epc) {
 #endif
   cpu.csr[mepc] = epc;
   cpu.csr[mcause] = cause;
-  // cpu.csr[mstatus] = ?;
+
+  IFDEF(CONFIG_FTRACE, ftrace_log(cpu.csr[mtvec], true));
 
   return cpu.csr[mtvec];
 }

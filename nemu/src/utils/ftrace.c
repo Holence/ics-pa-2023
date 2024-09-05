@@ -104,9 +104,6 @@ void init_ftrace(char *filename) {
 static int depth = 0;
 void ftrace_log(vaddr_t address, bool jump_in) {
   if (ftrace_enable) {
-    if (jump_in) {
-      depth++;
-    }
     int func_index = -1;
     for (int i = 0; i < functions_nums; i++) {
       // 函数真实范围，包含start，不包含end
@@ -115,14 +112,32 @@ void ftrace_log(vaddr_t address, bool jump_in) {
         break;
       }
     }
+    /*
+     * 关于ecall的ftrace
+     * 因为navy程序并不在nanos的elf中，navy程序调用ecall的地方是追踪不到的
+     * 只有nanos中的yield才会有ecall
+     * 而且readelf看到 __am_asm_trap 是 NOTYPE 而不是 FUNC
+     * 所以只能看到这样的部分：
+     * Call  __am_irq_handle
+     *  Call  do_event
+     *   Call  do_syscall
+     *    Call  putch
+     *    Ret   putch
+     *   Ret   do_syscall
+     *  Ret   do_event
+     * Ret   __am_irq_handle
+     */
     if (func_index != -1) {
+      if (jump_in) {
+        depth++;
+      }
       _Log(FMT_WORD ":"
                     "%*c"
                     "%s %s\n",
            address, depth, ' ', jump_in == true ? "Call " : "Ret  ", Functions[func_index].name);
-    }
-    if (!jump_in) {
-      depth--;
+      if (!jump_in) {
+        depth--;
+      }
     }
   }
 }
