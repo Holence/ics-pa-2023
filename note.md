@@ -315,7 +315,7 @@ if (nemu_state.state != NEMU_END) {
 > [!NOTE]
 > RTFSC理解指令执行的过程
 >
-> `init_monitor()`的部分就是初始化nemu，并装入客户程序的IMAGE到内存pmem，之后便进入`engine_start()`，进入sdb互动界面或者`cpu_exec()`，客户程序指令执行的过程发生在`cpu_exec()`中。
+> `init_monitor()`的部分就是初始化nemu，并装入客户程序的IMAGE到内存pmem，因为是raw binary，pc的起始地址就是0,对应到nemu中的内存地址为0x80000000。之后便进入`engine_start()`，进入sdb互动界面或者`cpu_exec()`，客户程序指令执行的过程发生在`cpu_exec()`中。
 >
 > `execute()`的循环中`exec_once()`, `s->pc`为当前指令的地址，进入`isa_exec_once()`后，`inst_fetch()`取回二进制指令，静态下一跳地址设置为`s->snpc = s->pc + 4`，进入`decode_exec()`，动态下一跳地址默认设为`s->dnpc = s->snpc`，在指令执行的过程中，那些跳转指令会改变`s->dnpc`的值。后面是一堆附带goto “INSTPAT_END”的block，一旦`(((uint64_t)INSTPAT_INST(s) >> shift) & mask) == key`，即匹配成功，进入`decode_operand()`解析立即数和读取寄存器src1和src2，最后执行对应的`EXECUTE_EXPR`。出去的时候`x0`寄存器要手动归零（因为是软件实现的不作判断，写入就写入了，硬件写入`x0`是不通的）。出去让cpu的下一跳设为`cpu.pc = s->dnpc`，最后处理trace的信息、处理外设。只要`nemu_state.state == NEMU_RUNNING`，就以此循环往复。
 >
@@ -629,8 +629,8 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 
 ## Makefile解析: navy on nanos
 
-navy
-- 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。从`_start()`开始，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
+navy，通过`/navy-apps/libs/libos/src/syscall.c`的系统调用，或包裹了系统调用的库函数`/navy-apps/libs/libc`，与硬件交互。从`_start()`开始运行，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
+- 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
 - `make install`❓
 
 nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
@@ -650,15 +650,16 @@ navy编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上
 直接把程序装入到elf segment的vaddr指定的地方，也就是0x83000000往高的区块。
 
 > [!TIP]
-> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从0x8001C000往上的，而am中klib里`malloc()`的实现是没有任何安全检查的，所以目前navy的程序运行`malloc()`可能会不安全❓
+> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从0x8001C000往上的，岂不是会被覆盖？
 >
-> 在PA4.2后会讨论这个问题
+> navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上❓）
+>
+> nanos的堆区仍旧是am的klib里的`malloc()`函数，`0x80000000-0x83000000`都是安全的部分，nanos中没什么需要malloc的，所以不太可能会覆盖到装入的navy程序。
 
 > [!TIP]
 > 需要把difftest关掉，不然看到spike说mcause应该为11❓
 >
 > 才能看到“一个未处理的4号事件”（system panic: Unhandled event ID = 4）
-
 
 ### 操作系统的运行时环境
 
@@ -681,7 +682,11 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 ### 标准输出
 
 > [!TIP]
-> 记得`/navy-apps/libs/libos/src/syscall.c`的`_write`也要返回正确的返回值。不然会发现`write()`可以正常工作，而`printf()`就只会打印第1个字符。
+> 记得`/navy-apps/libs/libos/src/syscall.c`的`_write()`也要返回正确的返回值。不然会发现`write()`可以正常工作，而`printf()`就只会打印第1个字符，因为目前`libc`中的`printf()`中是逐字符调用`_write()`的，它发现写了第一个字符得到的返回值不对后，就不写第二个字符了。
+
+### 堆区管理
+
+这里说的`_end`不是nanos装入nemu内存的`_end`地址，而是navy装入内存的`_end`地址，给它分配堆是分配navy程序.bss段上方的空间。
 
 # 二周目问题
 

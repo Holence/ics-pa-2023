@@ -2,6 +2,7 @@
 #include <nemu.h>
 #include <stdio.h>
 
+extern char _end;
 extern char _heap_start;
 extern char _stack_top;
 extern char _stack_pointer;
@@ -30,6 +31,7 @@ void _trm_init() {
   printf("PMEM_END:       %p\n", PMEM_END);
   printf("                👆HEAP\n");
   printf("_heap_start:    %p\n", &_heap_start);
+  printf("_end:           %p\n", &_end);
   printf("_stack_pointer: %p\n", &_stack_pointer);
   printf("                👇STACK\n");
   printf("_stack_top:     %p\n", &_stack_top);
