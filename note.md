@@ -631,17 +631,16 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 
 navy，通过`/navy-apps/libs/libos/src/syscall.c`的系统调用，或包裹了系统调用的库函数`/navy-apps/libs/libc`（可以不用知道细节），与硬件交互。从`_start()`开始运行，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
 - 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
-- `make install`❓
+- `make install`，`make app`后复制到`$(NAVY_HOME)/fsimg/bin`中，用于PA3.4的文件系统
+- `make fsimg`，对APPS和TESTS变量中指定的所有app进行`make install`，然后把`$(NAVY_HOME)/fsimg`目录下的所有文件concat到一个大小为512bytes整数倍的文件`ramdisk.img`，以及统计文件大小和offset的`ramdisk.h`，最后软链接到nanos的目录下
 
-nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
+nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
 
-navy程序编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource作为data存如elf中，模拟硬盘上的文件❓运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。PA3后面也是这样吗❓
-
-❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy程序，需要额外做哪些工作才能在nanos运行？
-
-操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
+> ❓nanos要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy程序，需要额外做哪些工作才能在nanos运行？
 
 ## 3.3
+
+navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。PA3后面也是这样吗❓
 
 ### 实现loader
 
@@ -684,6 +683,17 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 ### 支持多个ELF的ftrace
 
 TODO: 懒得做了
+
+## 3.4
+
+### 简易文件系统
+
+不需要考虑权限、互斥，打开与关闭的状态，简易文件系统嘛，读、写、seek都随意进行，只要文件操作的函数的输入输出能让libc正常运行就行了。
+
+- fd就是file_table的下标
+- 需要自己增加一个记录open_offset的地方（直接加在file_table中就行了）
+- read被调用时可能是循环着读一整块进入buf，到最后`open_offset+offset`会超出`size`，这时不算错误，读到结尾就行了。
+- write要是`open_offset+offset`超出了`size`，就报错
 
 # 二周目问题
 

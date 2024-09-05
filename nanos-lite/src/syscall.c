@@ -1,18 +1,6 @@
 #include <common.h>
 #include "syscall.h"
-
-int sys_write(int fd, void *buf, size_t count) {
-  int ret = 0;
-  if (fd == 1 || fd == 2) {
-    char *ptr = (char *)buf;
-    for (size_t i = 0; i < count; i++) {
-      putch(ptr[i]);
-      ret++;
-    }
-    return ret;
-  }
-  return -1; // error
-}
+#include <fs.h>
 
 int sys_brk(void *addr) {
   // 目前堆区大小的调整总是成功
@@ -30,23 +18,43 @@ void do_syscall(Context *c) {
   switch (a[0]) {
 
   case SYS_exit:
-    // printf("halt(%d)\n", a[1]); // strace
+    Log("STRACE🔍: halt(%d)", a[1]);
     halt(a[1]); // a0作为参数给halt
     break;
 
   case SYS_yield:
-    // printf("yield()\n"); // strace
+    Log("STRACE🔍: yield()");
     yield();     // 调用am中的yield()，然后还是会到do_event()中的case EVENT_YIELD
     c->GPRx = 0; // 设置返回值a0为0
     break;
 
+  case SYS_open:
+    Log("STRACE🔍: fs_open(%s, %d, %d)", (char *)a[1], a[2], a[3]);
+    c->GPRx = fs_open((char *)a[1], a[2], a[3]);
+    break;
+
+  case SYS_read:
+    Log("STRACE🔍: fs_read(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
+    c->GPRx = fs_read(a[1], (void *)a[2], a[3]);
+    break;
+
   case SYS_write:
-    // printf("sys_write(%d, 0x%x, %d)\n", a[1], a[2], a[3]); // strace
-    c->GPRx = sys_write(a[1], (void *)a[2], a[3]);
+    // Log("STRACE🔍: fs_write(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
+    c->GPRx = fs_write(a[1], (void *)a[2], a[3]);
+    break;
+
+  case SYS_close:
+    Log("STRACE🔍: fs_close(%s)", get_file_name(a[1]));
+    c->GPRx = fs_close(a[1]);
+    break;
+
+  case SYS_lseek:
+    Log("STRACE🔍: fs_lseek(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
+    c->GPRx = fs_lseek(a[1], a[2], a[3]);
     break;
 
   case SYS_brk:
-    // printf("sys_brk(0x%x)\n", a[1]); // strace
+    Log("STRACE🔍: sys_brk(0x%x)", a[1]);
     c->GPRx = sys_brk((void *)a[1]);
     break;
 

@@ -1,5 +1,6 @@
 #include <proc.h>
 #include <elf.h>
+#include <fs.h>
 
 // predefined compiler macro
 // 可以打印看看 riscv64-linux-gnu-gcc -dM -E - < /dev/null | grep LP
@@ -19,12 +20,18 @@
 #error Loader Unsupported ISA
 #endif
 
+int fs_open(const char *pathname, int flags, int mode);
+size_t fs_read(int fd, void *buf, size_t len);
+size_t fs_lseek(int fd, size_t offset, int whence);
 size_t ramdisk_read(void *buf, size_t offset, size_t len);
 
 // 将ramdisk中的elf文件装入内存，返回entry point address
 static uintptr_t loader(PCB *pcb, const char *filename) {
+  int fd = fs_open(filename, 0, 0);
+
   Elf_Ehdr ehdr;
-  ramdisk_read(&ehdr, 0, sizeof(ehdr));
+  fs_lseek(fd, 0, SEEK_SET);
+  fs_read(fd, &ehdr, sizeof(ehdr));
 
   // check magic number
   if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0) {
@@ -37,9 +44,11 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 
   Elf_Phdr phdr;
   for (int i = 0; i < ehdr.e_phnum; i++) {
-    ramdisk_read(&phdr, ehdr.e_phoff + i * ehdr.e_phentsize, ehdr.e_phentsize);
+    fs_lseek(fd, ehdr.e_phoff + i * ehdr.e_phentsize, SEEK_SET);
+    fs_read(fd, &phdr, ehdr.e_phentsize);
     if (phdr.p_type == PT_LOAD) {
-      ramdisk_read((void *)phdr.p_vaddr, phdr.p_offset, phdr.p_memsz);
+      fs_lseek(fd, phdr.p_offset, SEEK_SET);
+      fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz);
       memset((void *)(phdr.p_vaddr + phdr.p_filesz), 0, phdr.p_memsz - phdr.p_filesz);
     }
   }
