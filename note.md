@@ -629,19 +629,17 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 
 ## Makefile解析: navy on nanos
 
-navy，通过`/navy-apps/libs/libos/src/syscall.c`的系统调用，或包裹了系统调用的库函数`/navy-apps/libs/libc`，与硬件交互。从`_start()`开始运行，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
+navy，通过`/navy-apps/libs/libos/src/syscall.c`的系统调用，或包裹了系统调用的库函数`/navy-apps/libs/libc`（可以不用知道细节），与硬件交互。从`_start()`开始运行，到`call_main()`，最后从`_exit()`通过`ecall`进行系统调用SYS_exit退出。
 - 默认`make app`，就是把`tests`里的c程序链接上`/navy-apps/libs`，用riscv64-linux-gnu-gcc编译出的executable的elf可执行文件。
 - `make install`❓
 
 nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。
 
-navy编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上的文件❓会被nanos的loader程序，按照elf文件的标准，加载进入内存，再运行。
+navy程序编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource作为data存如elf中，模拟硬盘上的文件❓运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。PA3后面也是这样吗❓
 
 ❓nanos-lite要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy程序，需要额外做哪些工作才能在nanos运行？
 
 操作系统不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
-
-而PA3批处理系统中，navy不过就是nanos中调用的函数，navy程序的函数栈直接就长在nanos的栈之上。❓PA3后面也是这样吗
 
 ## 3.3
 
@@ -655,11 +653,6 @@ navy编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，模拟硬盘上
 > navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上❓）
 >
 > nanos的堆区仍旧是am的klib里的`malloc()`函数，`0x80000000-0x83000000`都是安全的部分，nanos中没什么需要malloc的，所以不太可能会覆盖到装入的navy程序。
-
-> [!TIP]
-> 需要把difftest关掉，不然看到spike说mcause应该为11❓
->
-> 才能看到“一个未处理的4号事件”（system panic: Unhandled event ID = 4）
 
 ### 操作系统的运行时环境
 
@@ -687,6 +680,10 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 ### 堆区管理
 
 这里说的`_end`不是nanos装入nemu内存的`_end`地址，而是navy装入内存的`_end`地址，给它分配堆是分配navy程序.bss段上方的空间。
+
+### 支持多个ELF的ftrace
+
+TODO: 懒得做了
 
 # 二周目问题
 
