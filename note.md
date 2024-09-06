@@ -704,7 +704,13 @@ TODO: 懒得做了
 
 `NDL.c`中调用libc的API，libc调用`_syscall_`
 
-`NDL_PollEvent()`需要读“文件”`/dev/events`，所以就需要在新建一个虚拟文件，它的read函数为`events_read()`，在里面用`io_read()`获取按键信息，用字符串函数拼接成事件字符串`kd XXXX`，这样就模拟了从“文件”`/dev/events`中读出了事件字符串。
+键盘部分：`NDL_PollEvent()`需要读“文件”`/dev/events`，所以就需要在新建一个虚拟文件，它的read函数为`events_read()`，在里面用`io_read()`获取按键信息，用字符串函数拼接成事件字符串`kd XXXX`，这样就模拟了从“文件”`/dev/events`中读出了事件字符串。
+
+VGA部分：
+- 规定`fb_write()`要进行刷新，而限于`size_t fb_write(void *buf, size_t offset, size_t len)`的接口形式，没法通过len算出一个RECT的`w*h`给VGA，导致`fb_write()`只能实现让VGA写一行数据。最后展现出来的形式是从上往下的幕布。
+- 用lseek指定绘画的起始地址
+
+> 咱能不能`fb_write()`里不刷新，写完所有行后，再用另一个系统调用去刷新屏幕`io_write(AM_GPU_FBDRAW, 0, 0, NULL, 0, 0, true);`❓
 
 # 二周目问题
 

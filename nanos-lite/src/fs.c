@@ -4,6 +4,8 @@ size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t ramdisk_write(const void *buf, size_t offset, size_t len);
 size_t serial_write(const void *buf, size_t offset, size_t len);
 size_t events_read(void *buf, size_t offset, size_t len);
+size_t dispinfo_read(void *buf, size_t offset, size_t len);
+size_t fb_write(const void *buf, size_t offset, size_t len);
 
 typedef size_t (*ReadFn)(void *buf, size_t offset, size_t len);
 typedef size_t (*WriteFn)(const void *buf, size_t offset, size_t len);
@@ -20,8 +22,15 @@ typedef struct {
 enum { FD_STDIN,
        FD_STDOUT,
        FD_STDERR,
+
+       // keyboard event
        FD_EVENT,
-       FD_FB };
+
+       // frame buffer 一个W * H * 4字节的数组
+       // 按行优先存储所有像素的颜色值(32位)
+       // 每个像素是`00rrggbb`的形式, 8位颜色
+       FD_FB,
+};
 
 size_t invalid_read(void *buf, size_t offset, size_t len) {
   panic("invalid_read: should not reach here");
@@ -39,6 +48,8 @@ static Finfo file_table[] __attribute__((used)) = {
     [FD_STDOUT] = {"stdout", 0, 0, 0, invalid_read, serial_write},
     [FD_STDERR] = {"stderr", 0, 0, 0, invalid_read, serial_write},
     [FD_EVENT] = {"/dev/events", 0, 0, 0, events_read, invalid_write},
+    [FD_FB] = {"/dev/fb", 0, 0, 0, invalid_read, fb_write},
+    {"/proc/dispinfo", 0, 0, 0, dispinfo_read, invalid_write},
 #include "files.h"
 };
 
@@ -65,7 +76,7 @@ int fs_open(const char *pathname, int flags, int mode) {
 
 size_t fs_read(int fd, void *buf, size_t len) {
   if (file_table[fd].read) {
-    return file_table[fd].read(buf, 0, len);
+    return file_table[fd].read(buf, file_table[fd].open_offset, len);
   } else {
     // 若偏移量超过边界，则读完
     if (file_table[fd].open_offset + len > file_table[fd].size) {
@@ -79,7 +90,7 @@ size_t fs_read(int fd, void *buf, size_t len) {
 
 size_t fs_write(int fd, const void *buf, size_t len) {
   if (file_table[fd].write) {
-    return file_table[fd].write(buf, 0, len);
+    return file_table[fd].write(buf, file_table[fd].open_offset, len);
   } else {
     // 注意偏移量不要越过文件的边界
     assert(file_table[fd].open_offset + len <= file_table[fd].size);
@@ -90,28 +101,24 @@ size_t fs_write(int fd, const void *buf, size_t len) {
 }
 
 size_t fs_lseek(int fd, size_t offset, int whence) {
-  if (fd > FD_EVENT) {
-    size_t new_offset;
-    switch (whence) {
-    case SEEK_SET:
-      new_offset = offset;
-      break;
-    case SEEK_CUR:
-      new_offset = file_table[fd].open_offset + offset;
-      break;
-    case SEEK_END:
-      new_offset = file_table[fd].size + offset;
-      break;
-    default:
-      return -1;
-    }
-    // 注意偏移量不要越过文件的边界
-    assert(new_offset >= 0 && new_offset <= file_table[fd].size);
-    file_table[fd].open_offset = new_offset;
-    return new_offset;
-  } else {
+  size_t new_offset;
+  switch (whence) {
+  case SEEK_SET:
+    new_offset = offset;
+    break;
+  case SEEK_CUR:
+    new_offset = file_table[fd].open_offset + offset;
+    break;
+  case SEEK_END:
+    new_offset = file_table[fd].size + offset;
+    break;
+  default:
     return -1;
   }
+  // 注意偏移量不要越过文件的边界
+  assert(new_offset >= 0 && new_offset <= file_table[fd].size);
+  file_table[fd].open_offset = new_offset;
+  return new_offset;
 }
 
 int fs_close(int fd) {
@@ -120,5 +127,7 @@ int fs_close(int fd) {
 }
 
 void init_fs() {
-  // TODO: initialize the size of /dev/fb
+  // initialize the size of /dev/fb
+  AM_GPU_CONFIG_T info = io_read(AM_GPU_CONFIG);
+  file_table[FD_FB].size = (info.width * info.height) << 2;
 }

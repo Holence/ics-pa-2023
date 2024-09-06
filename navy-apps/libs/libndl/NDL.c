@@ -20,9 +20,9 @@ uint32_t NDL_GetTicks() {
 // 读出一条事件信息, 将其写入`buf`中, 最长写入`len`字节
 // 若读出了有效的事件, 函数返回1, 否则返回0
 int NDL_PollEvent(char *buf, int len) {
-  int fd = open("/dev/events", 'r', 0);
+  int fd = open("/dev/events", 'r');
   int ret = read(fd, buf, len);
-  // _close(fd); // 没必要，就不close了
+  // close(fd); // 没必要，就不close了
 
   // 怎样判断有效的事件？
   if (ret > 0) {
@@ -53,9 +53,40 @@ void NDL_OpenCanvas(int *w, int *h) {
     }
     close(fbctl);
   }
+
+  // 打开一张(*w) X (*h)的画布
+  // 如果*w和*h均为0, 则将系统全屏幕作为画布, 并将*w和*h分别设为系统屏幕的大小
+  char buf[32];
+  int fd = open("/proc/dispinfo", 'r');
+  read(fd, buf, 32);
+  // close(fd); // 没必要，就不close了
+  sscanf(buf, "WIDTH:%d\nHEIGHT:%d", &screen_w, &screen_h);
+  if (*w == 0 && *h == 0) {
+    *w = screen_w;
+    *h = screen_h;
+  } else {
+    if (*w > screen_w) {
+      *w = screen_w;
+    }
+    if (*h > screen_h) {
+      *h = screen_h;
+    }
+  }
 }
 
+// 向画布`(x, y)`坐标处绘制`w*h`的矩形图像, 并将该绘制区域同步到屏幕上
+// 图像像素按行优先方式存储在`pixels`中, 每个像素用32位整数以`00RRGGBB`的方式描述颜色
 void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
+  int rect_width_bytes = w << 2;
+  int screen_width_bytes = screen_w << 2;
+  int fd = open("/dev/fb", 'w');
+  lseek(fd, screen_width_bytes * y + (x << 2), SEEK_SET); // 跳到[x,y]的地方
+  for (int i = 0; i < h; i++) {
+    write(fd, pixels, rect_width_bytes);     // 写一整行
+    pixels += w;                             // w不用乘4,因为它已经是(uint32_t *)了
+    lseek(fd, screen_width_bytes, SEEK_CUR); // 跳到下一行的位置
+  }
+  // close(fd); // 没必要，就不close了
 }
 
 void NDL_OpenAudio(int freq, int channels, int samples) {

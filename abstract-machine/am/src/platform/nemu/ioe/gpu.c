@@ -20,7 +20,7 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
     // for (int x = ctl->x; x < ctl->x + ctl->w; x++) {
     //   fb[y * fb_w + x] = pixels[index++];
     // }
-    memcpy(fb + y * fb_w + ctl->x, pixels + index, ctl->w * sizeof(uint32_t));
+    memcpy(fb + y * fb_w + ctl->x, pixels + index, ctl->w << 2);
     index += ctl->w;
   }
   outl(SYNC_ADDR, ctl->sync);

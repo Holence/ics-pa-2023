@@ -32,16 +32,29 @@ size_t events_read(void *buf, size_t offset, size_t len) {
   if (ev.keycode == AM_KEY_NONE) {
     return 0;
   } else {
-    return sprintf(buf, "k%c %s\n", ev.keydown ? 'd' : 'u', keyname[ev.keycode]);
+    return snprintf(buf, len, "k%c %s\n", ev.keydown ? 'd' : 'u', keyname[ev.keycode]);
   }
 }
 
+// /proc/dispinfo的格式：
+// WIDTH:640
+// HEIGHT:480
+static int screen_w, screen_h;
 size_t dispinfo_read(void *buf, size_t offset, size_t len) {
-  return 0;
+  AM_GPU_CONFIG_T info = io_read(AM_GPU_CONFIG);
+  screen_w = info.width;
+  screen_h = info.height;
+  return snprintf(buf, len, "WIDTH:%d\nHEIGHT:%d", screen_w, screen_h);
 }
 
-size_t fb_write(const void *buf, size_t offset, size_t len) {
-  return 0;
+// 向frame buffer中写入一行，buf为需要写入的一行数据，len为字节数，所以一行的宽度为len/4，写完之后刷新屏幕
+// offset = (vga_y * screen_w + vga_x) * 4
+size_t fb_write(void *buf, size_t offset, size_t len) {
+  offset = offset >> 2;
+  int vga_x = offset % screen_w;
+  int vga_y = offset / screen_w;
+  io_write(AM_GPU_FBDRAW, vga_x, vga_y, buf, len >> 2, 1, true);
+  return len;
 }
 
 void init_device() {

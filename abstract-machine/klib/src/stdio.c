@@ -162,7 +162,14 @@ int sprintf(char *out, const char *fmt, ...) {
 }
 
 int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+  va_list ap;
+  va_start(ap, fmt);
+  int char_written = vsprintf(out, fmt, ap);
+  va_end(ap);
+  if (char_written + 1 > n) {
+    out[n] = '\0';
+  }
+  return char_written;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {

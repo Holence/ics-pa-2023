@@ -57,12 +57,12 @@ void do_syscall(Context *c) {
     break;
 
   case SYS_lseek:
-    Log("STRACE🔍: fs_lseek(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
+    // Log("STRACE🔍: fs_lseek(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
     c->GPRx = fs_lseek(a[1], a[2], a[3]);
     break;
 
   case SYS_brk:
-    Log("STRACE🔍: sys_brk(0x%x)", a[1]);
+    // Log("STRACE🔍: sys_brk(0x%x)", a[1]);
     c->GPRx = sys_brk((void *)a[1]);
     break;
 
