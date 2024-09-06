@@ -1,9 +1,17 @@
 #include <common.h>
 #include "syscall.h"
 #include <fs.h>
+#include <time.h>
 
 int sys_brk(void *addr) {
   // 目前堆区大小的调整总是成功
+  return 0;
+}
+
+int sys_gettimeofday(void *tv, void *tz) {
+  int us = io_read(AM_TIMER_UPTIME).us;
+  ((struct timeval *)tv)->tv_sec = us / 1000000;
+  ((struct timeval *)tv)->tv_usec = us % 1000000;
   return 0;
 }
 
@@ -56,6 +64,11 @@ void do_syscall(Context *c) {
   case SYS_brk:
     Log("STRACE🔍: sys_brk(0x%x)", a[1]);
     c->GPRx = sys_brk((void *)a[1]);
+    break;
+
+  case SYS_gettimeofday:
+    // Log("STRACE🔍: sys_gettimeofday(0x%x, 0x%x)", a[1], a[2]);
+    c->GPRx = sys_gettimeofday((void *)a[1], (void *)a[2]);
     break;
 
   default:
