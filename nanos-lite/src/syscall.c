@@ -1,7 +1,7 @@
 #include <common.h>
 #include "syscall.h"
 #include <fs.h>
-#include <time.h>
+#include <sys/time.h>
 
 int sys_brk(void *addr) {
   // 目前堆区大小的调整总是成功
