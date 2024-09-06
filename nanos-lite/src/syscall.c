@@ -37,12 +37,12 @@ void do_syscall(Context *c) {
     break;
 
   case SYS_open:
-    Log("STRACE🔍: fs_open(%s, %d, %d)", (char *)a[1], a[2], a[3]);
+    // Log("STRACE🔍: fs_open(%s, %d, %d)", (char *)a[1], a[2], a[3]);
     c->GPRx = fs_open((char *)a[1], a[2], a[3]);
     break;
 
   case SYS_read:
-    Log("STRACE🔍: fs_read(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
+    // Log("STRACE🔍: fs_read(%s, 0x%x, %d)", get_file_name(a[1]), a[2], a[3]);
     c->GPRx = fs_read(a[1], (void *)a[2], a[3]);
     break;
 
@@ -52,7 +52,7 @@ void do_syscall(Context *c) {
     break;
 
   case SYS_close:
-    Log("STRACE🔍: fs_close(%s)", get_file_name(a[1]));
+    // Log("STRACE🔍: fs_close(%s)", get_file_name(a[1]));
     c->GPRx = fs_close(a[1]);
     break;
 

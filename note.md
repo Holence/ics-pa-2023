@@ -498,7 +498,7 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 只读
 
-在`cpu-exec.c`的`execute()`过程中会尝试`device_update()`，SDL2库会读入键盘的信号，触发`send_key()`，用队列记录按键信息。
+在`cpu-exec.c`的`execute()`过程中会尝试`device_update()`，SDL2库会读入键盘的信号，触发`send_key()`，用队列记录按键信息。客户程序每次读出队列头部的一个按键信息。
 
 看看预编译后的结果理解宏，打印`scancode`和`am_scancode`，运行`/am-kernels/tests/am-tests/src/main.c`，观察`scancode`和`am_scancode`。
 
@@ -694,6 +694,17 @@ TODO: 懒得做了
 - 需要自己增加一个记录open_offset的地方（直接加在file_table中就行了）
 - read被调用时可能是循环着读一整块进入buf，到最后`open_offset+offset`会超出`size`，这时不算错误，读到结尾就行了。
 - write要是`open_offset+offset`超出了`size`，就报错
+
+### 虚拟文件系统
+
+- ramdisk和磁盘上的文件，支持lseek操作, 存储这些文件的设备称为"块设备"
+- 一些特殊的字节序列, 例如键入按键的字节序列是"流动"的，不支持lseek操作, 相应的设备称为"字符设备
+
+### 操作系统之上的IOE
+
+`NDL.c`中调用libc的API，libc调用`_syscall_`
+
+`NDL_PollEvent()`需要读“文件”`/dev/events`，所以就需要在新建一个虚拟文件，它的read函数为`events_read()`，在里面用`io_read()`获取按键信息，用字符串函数拼接成事件字符串`kd XXXX`，这样就模拟了从“文件”`/dev/events`中读出了事件字符串。
 
 # 二周目问题
 
