@@ -758,6 +758,33 @@ a < b == A < B
 >
 > 根据IEEE745标准，手动解析算出真值，然后再`fixedpt_rconst(R)`转换为fixedpt
 
+### Navy作为基础设施
+
+> [!TIP]
+> make native运行`bmp-test`打开SDL窗口时直接就崩了，需要更新navy-apps的repo，就好了。
+>
+> 运行`event-text`出现了下面的错误，是我在`NDL_PollEvent`中多加了一句`close(fd)`
+> ```
+> XIO:  fatal IO error 9 (Bad file descriptor) on X server ":1"
+>       after 228 requests (228 known processed) with 0 events remaining.
+> ```
+
+> [!NOTE]
+> 神奇的LD_PRELOAD: bmp-test需要打开一个路径为/share/pictures/projectn.bmp的文件, 但在Linux native中, 这个路径对应的文件并不存在. 但我们还是把bmp-test成功运行起来了, 你知道这是如何实现的吗? 如果你感兴趣, 可以在互联网上搜索LD_PRELOAD相关的内容.
+>
+> ```makefile
+> # If you set LD_PRELOAD to the path of a shared object, that file will be loaded before any other library (including the C runtime, libc.so), and override symbols.
+> run: app env
+>	  @LD_PRELOAD=$(NAVY_HOME)/libs/libos/build/native.so $(APP) $(mainargs)
+> 
+> build/native.so: src/native.cpp
+> 	mkdir -p build/
+> 	g++ -std=c++11 -O1 -fPIC -shared -o build/native.so src/native.cpp -ldl -lSDL2
+> ```
+>
+> 用`native.so`覆盖其他标准库的函数，的`native.cpp`中`fopen`、`open`、`execve`都去调用了`redirect_path()`，让能在`fsimg`中找到存在的都redirect到`fsimg`中。
+
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
