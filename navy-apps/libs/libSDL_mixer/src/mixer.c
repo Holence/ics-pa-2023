@@ -1,6 +1,5 @@
 #include <SDL_mixer.h>
 
-
 // General
 
 int Mix_OpenAudio(int frequency, uint16_t format, int channels, int chunksize) {
@@ -26,7 +25,6 @@ Mix_Chunk *Mix_LoadWAV_RW(SDL_RWops *src, int freesrc) {
 
 void Mix_FreeChunk(Mix_Chunk *chunk) {
 }
-
 
 // Channels
 

@@ -12,7 +12,7 @@ char *SDL_GetError() {
   return "Navy does not support SDL_GetError()";
 }
 
-int SDL_SetError(const char* fmt, ...) {
+int SDL_SetError(const char *fmt, ...) {
   return -1;
 }
 
