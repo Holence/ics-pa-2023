@@ -804,11 +804,9 @@ bash ./convert.sh
 
 ❓❓❓`SDL_PollEvent()`竟然还得遍历键盘名称数组来获取scancode，太低效了……为什么不直接约定event string中传scancode，如果说是AM中的AM_KEYS enum和native用的SDL库中的不一致，那一开始就用SDL的标准`SDL_Scancode`不就好了？
 
-`BMP_Load`老慢了，nemu上需要7秒才能读入一页ppt。BMP的脑残格式是逆向存储的，而且还是24bit的格式，我们要的pixel是32bit。优化了一下可以到4秒多。
-
-### Menu
-
-也挺慢的
+> `BMP_Load`老慢了，nemu上需要7秒才能读入一页ppt。BMP的脑残格式是逆向存储的，而且还是24bit的格式，我们要的pixel是32bit。优化了一下可以到4秒多。
+>
+> 😅错怪你了，是我没关difftest，关了之后很快的
 
 # 二周目问题
 
