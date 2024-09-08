@@ -9,6 +9,8 @@
 static int evtdev = -1;
 static int fbdev = -1;
 static int screen_w = 0, screen_h = 0;
+static int canvas_x = 0, canvas_y = 0;
+static int canvas_w = 0, canvas_h = 0;
 
 // 以毫秒(10^-3秒)为单位返回系统时间
 uint32_t NDL_GetTicks() {
@@ -71,6 +73,10 @@ void NDL_OpenCanvas(int *w, int *h) {
       *h = screen_h;
     }
   }
+  canvas_w = *w;
+  canvas_h = *h;
+  canvas_x = (screen_w - canvas_w) / 2;
+  canvas_y = (screen_h - canvas_h) / 2;
 }
 
 // 向画布`(x, y)`坐标处绘制`w*h`的矩形图像, 并将该绘制区域同步到屏幕上
@@ -80,7 +86,8 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
   int screen_width_bytes = screen_w << 2;
   int seek_amount = screen_width_bytes - rect_width_bytes;
   int fd = open("/dev/fb", O_WRONLY);
-  lseek(fd, screen_width_bytes * y + (x << 2), SEEK_SET); // 跳到[x,y]的地方
+  lseek(fd, screen_width_bytes * canvas_y + (canvas_x << 2), SEEK_SET); // 跳到[canvas_x, canvas_y]的地方
+  lseek(fd, screen_width_bytes * y + (x << 2), SEEK_CUR);               // 跳到[canvas_x + x, canvas_y + y]的地方
   for (int i = 0; i < h; i++) {
     write(fd, pixels, rect_width_bytes); // 写一整行，其中的open_offset+=rect_width_bytes的
     lseek(fd, seek_amount, SEEK_CUR);    // 跳到下一行的位置
