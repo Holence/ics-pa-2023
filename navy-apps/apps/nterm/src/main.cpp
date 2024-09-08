@@ -124,6 +124,7 @@ char handle_key(const char *buf) {
   static int shift = 0;
   sscanf(buf + 2, "%s", key);
 
+  // shift切换大小写
   if (strcmp(key, "LSHIFT") == 0 || strcmp(key, "RSHIFT") == 0)  { shift ^= 1; return '\0'; }
 
   if (buf[0] == 'd') {

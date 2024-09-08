@@ -23,6 +23,19 @@ static void sh_prompt() {
 }
 
 static void sh_handle_cmd(const char *cmd) {
+  char *cmd_copy = const_cast<char *>(cmd);
+  char *op = strtok(cmd_copy, " ");
+  if (op == NULL) {
+    return;
+  } else {
+    if (strcmp(op, "echo") == 0) {
+      char *p = cmd_copy + strlen(op) + 1;
+      while (*p == ' ') {
+        p++;
+      }
+      sh_printf("%s", p);
+    }
+  }
 }
 
 void builtin_sh_run() {
