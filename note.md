@@ -51,9 +51,7 @@
 
 ## 调试AM+客户程序
 
-用自己写的nemu sdb只能在指令的层面上调试，不是很方便，等把klib中的`printf`实现了，就可以用`printf`调试了。
-
-只要通过了am-kernels中的cpu-test以及PA2.4自己写的详尽test，出错的地方就不可能是nemu了。只要客户程序能在native上正常运行，那么客户程序部分也没有错。那么错的只可能是am的部分了，用`printf`也差不多够用。
+见[PA2.4](#2.4)
 
 # （需要补习的）前置知识
 
@@ -406,9 +404,12 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 要编写详尽的test来测试klib，懒得自己写了，看有人引用了glibc的测试，我也引用一下吧: https://github.com/alelievr/libft-unit-test/blob/master/hardcore-mode/
 
 > [!IMPORTANT]
-> 先在native上用glibc的库函数来测试（先保证这些test本身书写正确）, 然后在native上测试你的klib测试（再保证klib正确）, 最后再到NEMU上运行这些测试代码来测试你的NEMU实现（最后保证nemu正确）
-
-在native上测试klib时出现问题，只能用二分法找到出错的用例❓klib的部分没法调试啊？因为也还没做printf，就只能把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）。
+> 用am-kernels的测试程序：
+>   - 保证am-kernels测试程序的正确: native + glibc 跑 am-kernels
+>   - 保证klib正确: native + klib 跑 am-kernels
+>
+>     在native上测试klib，并不能跳入klib里的函数❓在klib还没做printf的阶段，只能用二分法找到出错的用例定位到是哪个klib里的函数有问题，然后把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）
+>   - 保证nemu正确: nemu + glibc 跑 am-kernels（后面有difftest就更全面了）
 
 ---
 
@@ -519,7 +520,7 @@ io_write(reg_index, 写入的内容) // 是包裹了void ioe_write(int reg, void
 
 第二个流入在nemu中实现，只有在SDL audio的callback被调用时，才开始流。
 
-sbuf用一种循环的方式去读写
+sbuf用一种头尾循环的方式去读写
 
 ## 必答题
 
@@ -760,6 +761,8 @@ a < b == A < B
 
 ### Navy作为基础设施
 
+navy中附带了模拟nanos的native运行环境，方便检测navy app程序的正确性（在abstract machine中，用native模拟abstract machine和nemu的环境，方便检测am-kernels程序的正确性）
+
 > [!TIP]
 > make native运行`bmp-test`打开SDL窗口时直接就崩了，需要更新navy-apps的repo，就好了。
 >
@@ -784,6 +787,22 @@ a < b == A < B
 >
 > 用`native.so`覆盖其他标准库的函数，的`native.cpp`中`fopen`、`open`、`execve`都去调用了`redirect_path()`，让能在`fsimg`中找到存在的都redirect到`fsimg`中。
 
+### NSlider
+
+```
+sudo apt install imagemagick
+sudo nano /etc/ImageMagick-6/policy.xml
+# change from
+# <policy domain="coder" rights="none" pattern="PDF" />
+# to
+# <policy domain="coder" rights="read|write" pattern="PDF" />
+bash ./convert.sh
+```
+
+> [!TIP]
+> 文档说的不全，实现`SDL_UpdateRect()`后还需要实现在`SDL_BlitSurface(slide, NULL, screen, NULL)`中把`slide`赋值给`screen`，才能成功展示第一页PPT
+
+❓❓❓`SDL_PollEvent()`竟然还得遍历键盘名称数组来获取scancode，太低效了……为什么不直接约定event string中传scancode，如果说是AM中的AM_KEYS enum和native用的SDL库中的不一致，那一开始就用SDL的标准`SDL_Scancode`不就好了？
 
 # 二周目问题
 

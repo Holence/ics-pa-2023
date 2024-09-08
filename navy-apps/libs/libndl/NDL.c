@@ -60,7 +60,6 @@ void NDL_OpenCanvas(int *w, int *h) {
   char buf[32];
   int fd = open("/proc/dispinfo", O_RDONLY);
   read(fd, buf, 32);
-  close(fd);
   sscanf(buf, "WIDTH:%d\nHEIGHT:%d", &screen_w, &screen_h);
   if (*w == 0 && *h == 0) {
     *w = screen_w;
@@ -93,7 +92,6 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
     lseek(fd, seek_amount, SEEK_CUR);    // 跳到下一行的位置
     pixels += w;                         // w不用乘4,因为它已经是(uint32_t *)了
   }
-  close(fd);
 }
 
 void NDL_OpenAudio(int freq, int channels, int samples) {
