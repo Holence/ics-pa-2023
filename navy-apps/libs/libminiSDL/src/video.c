@@ -8,14 +8,69 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_
   assert(dst && src);
   assert(dst->format->BitsPerPixel == 32);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
-  assert(dst->w == src->w);
-  assert(dst->h == src->h);
   uint32_t *src_pixels = (uint32_t *)src->pixels;
   uint32_t *dst_pixels = (uint32_t *)dst->pixels;
-  memcpy(dst->pixels, src->pixels, src->h * src->w * 4);
+  if (srcrect == NULL && dstrect == NULL) {
+    memcpy(dst_pixels, src_pixels, src->w * src->h * 4);
+  } else {
+    int rect_w, rect_h, src_x, src_y, dst_x, dst_y;
+    if (srcrect) {
+      rect_w = srcrect->w;
+      rect_h = srcrect->h;
+      src_x = srcrect->x;
+      src_y = srcrect->y;
+    } else {
+      // If srcrect == NULL, the entire surface is copied.
+      rect_w = src->w;
+      rect_h = src->h;
+      src_x = 0;
+      src_y = 0;
+    }
+
+    if (dstrect) {
+      dst_x = dstrect->x;
+      dst_y = dstrect->y;
+    } else {
+      // If dstrect == NULL, then the destination position (upper left corner) is (0, 0).
+      dst_x = 0;
+      dst_y = 0;
+    }
+
+    int dst_seek_amount = dst->w - rect_w;
+    int src_seek_amount = src->w - rect_w;
+    dst_pixels += dst_y * dst->w + dst_x;
+    src_pixels += src_y * src->w + src_x;
+    for (int i = 0; i < rect_h; ++i) {
+      for (int j = 0; j < rect_w; ++j) {
+        *(dst_pixels++) = *(src_pixels++);
+      }
+      dst_pixels += dst_seek_amount;
+      src_pixels += src_seek_amount;
+    }
+  }
 }
 
+// This function performs a fast fill of the given rectangle with color. If dstrect is NULL, the whole surface will be filled with color.
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
+  assert(dst->format->BitsPerPixel == 32);
+  uint32_t *pixels = (uint32_t *)dst->pixels;
+  int width = dst->w;
+  int rect_w, rect_h;
+  if (dstrect == NULL) {
+    rect_w = dst->w;
+    rect_h = dst->h;
+  } else {
+    rect_w = dstrect->w;
+    rect_h = dstrect->h;
+    pixels += dstrect->y * width + dstrect->x;
+  }
+  int seek_amount = width - rect_w;
+  for (int i = 0; i < rect_h; ++i) {
+    for (int j = 0; j < rect_w; ++j) {
+      *(pixels++) = color;
+    }
+    pixels += seek_amount;
+  }
 }
 
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
