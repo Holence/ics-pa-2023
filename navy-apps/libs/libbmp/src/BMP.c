@@ -33,17 +33,29 @@ void* BMP_Load(const char *filename, int *width, int *height) {
   int h = hdr.height;
   uint32_t *pixels = malloc(w * h * sizeof(uint32_t));
 
-  int line_off = (w * 3 + 3) & ~0x3;
-  for (int i = 0; i < h; i ++) {
-    fseek(fp, hdr.offset + (h - 1 - i) * line_off, SEEK_SET);
-    int nread = fread(&pixels[w * i], 3, w, fp);
-    for (int j = w - 1; j >= 0; j --) {
-      uint8_t b = *(((uint8_t*)&pixels[w * i]) + 3 * j);
-      uint8_t g = *(((uint8_t*)&pixels[w * i]) + 3 * j + 1);
-      uint8_t r = *(((uint8_t*)&pixels[w * i]) + 3 * j + 2);
-      pixels[w * i + j] = (r << 16) | (g << 8) | b;
+  // Row padding: each row in a BMP fp is padded to a multiple of 4 bytes
+  // int rowPadding = (4 - (w * 3) % 4) % 4;
+  fseek(fp, hdr.offset, SEEK_SET);
+  uint32_t *pixel_ptr = pixels + (h - 1) * w;
+  int two_w = w << 1;
+  // Read pixel data row by row (BMP stores pixels bottom-up)
+  // 从上往下读bmp文件，同时从下往上写入pixel
+  uint8_t *buffer = malloc(w * 3 * sizeof(uint8_t));
+  for (int y = h - 1; y >= 0; y--) {
+    fread(buffer, 3, w, fp);
+    uint8_t *buffer_ptr = buffer;
+    // 由于slide的bmp是24bit的，还得一个一个扩充成32bit
+    for (int x = 0; x < w; x++) {
+      // Read 3 bytes (B, G, R)
+      uint8_t blue = *(buffer_ptr++), green = *(buffer_ptr++), red = *(buffer_ptr++);
+      // Store the pixel in the format 0x00RRGGBB
+      *(pixel_ptr++) = (red << 16) | (green << 8) | blue;
     }
+    pixel_ptr -= two_w;
+    // Skip row padding if any
+    // fseek(fp, rowPadding, SEEK_CUR);
   }
+  free(buffer);
 
   fclose(fp);
   if (width) *width = w;
