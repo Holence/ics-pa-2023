@@ -14,7 +14,7 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_
   // 全屏刷新
   if (srcrect == NULL && dstrect == NULL) {
     if (dst->format->BitsPerPixel == 32) {
-      memcpy(dst->pixels, src->pixels, src->w * src->h * 4);
+      memcpy(dst->pixels, src->pixels, (src->w * src->h) << 2);
     } else {
       memcpy(dst->pixels, src->pixels, src->w * src->h);
     }
@@ -45,73 +45,73 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_
       dst_y = 0;
     }
 
+#define DO                                 \
+  {                                        \
+    int dst_seek_amount = dst->w - rect_w; \
+    int src_seek_amount = src->w - rect_w; \
+    dst_pixels += dst_y * dst->w + dst_x;  \
+    src_pixels += src_y * src->w + src_x;  \
+    for (int i = 0; i < rect_h; ++i) {     \
+      for (int j = 0; j < rect_w; ++j) {   \
+        *(dst_pixels++) = *(src_pixels++); \
+      }                                    \
+      dst_pixels += dst_seek_amount;       \
+      src_pixels += src_seek_amount;       \
+    }                                      \
+  }
     if (dst->format->BitsPerPixel == 32) {
       uint32_t *src_pixels = (uint32_t *)src->pixels;
       uint32_t *dst_pixels = (uint32_t *)dst->pixels;
-      int dst_seek_amount = dst->w - rect_w;
-      int src_seek_amount = src->w - rect_w;
-      dst_pixels += dst_y * dst->w + dst_x;
-      src_pixels += src_y * src->w + src_x;
-      for (int i = 0; i < rect_h; ++i) {
-        for (int j = 0; j < rect_w; ++j) {
-          *(dst_pixels++) = *(src_pixels++);
-        }
-        dst_pixels += dst_seek_amount;
-        src_pixels += src_seek_amount;
-      }
+      DO;
     } else {
       uint8_t *src_pixels = (uint8_t *)src->pixels;
       uint8_t *dst_pixels = (uint8_t *)dst->pixels;
-      int dst_seek_amount = dst->w - rect_w;
-      int src_seek_amount = src->w - rect_w;
-      dst_pixels += dst_y * dst->w + dst_x;
-      src_pixels += src_y * src->w + src_x;
-      for (int i = 0; i < rect_h; ++i) {
-        for (int j = 0; j < rect_w; ++j) {
-          *(dst_pixels++) = *(src_pixels++);
-        }
-        dst_pixels += dst_seek_amount;
-        src_pixels += src_seek_amount;
-      }
+      DO;
     }
+#undef DO
   }
 }
 
+// 把color填入dst的dstrect区域的pixels中
 // This function performs a fast fill of the given rectangle with color. If dstrect is NULL, the whole surface will be filled with color.
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
   // printf("SDL_FillRect(%x, %x, %x)\n", dst, dstrect, color);
   assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
-  uint32_t *pixels = (uint32_t *)dst->pixels;
-  int width = dst->w;
-  int rect_w, rect_h;
-  if (dstrect == NULL) {
-    rect_w = dst->w;
-    rect_h = dst->h;
-  } else {
-    rect_w = dstrect->w;
-    rect_h = dstrect->h;
-    pixels += dstrect->y * width + dstrect->x;
+
+#define DO                                       \
+  {                                              \
+    int width = dst->w;                          \
+    int rect_w, rect_h;                          \
+    if (dstrect == NULL) {                       \
+      rect_w = dst->w;                           \
+      rect_h = dst->h;                           \
+    } else {                                     \
+      rect_w = dstrect->w;                       \
+      rect_h = dstrect->h;                       \
+      pixels += dstrect->y * width + dstrect->x; \
+    }                                            \
+    int seek_amount = width - rect_w;            \
+    for (int i = 0; i < rect_h; ++i) {           \
+      for (int j = 0; j < rect_w; ++j) {         \
+        *(pixels++) = color;                     \
+      }                                          \
+      pixels += seek_amount;                     \
+    }                                            \
   }
-  int seek_amount = width - rect_w;
 
   if (dst->format->BitsPerPixel == 32) {
-    for (int i = 0; i < rect_h; ++i) {
-      for (int j = 0; j < rect_w; ++j) {
-        *(pixels++) = color;
-      }
-      pixels += seek_amount;
-    }
+    // pixels and color is 32 bit
+    uint32_t *pixels = (uint32_t *)dst->pixels;
+    DO;
   } else {
-    SDL_Color *colors_ptr = dst->format->palette->colors;
-    for (int i = 0; i < rect_h; ++i) {
-      for (int j = 0; j < rect_w; ++j) {
-        *(pixels++) = colors_ptr[color].a;
-      }
-      pixels += seek_amount;
-    }
+    // pixels and color is 8 bit
+    uint8_t *pixels = (uint8_t *)dst->pixels;
+    DO;
   }
+#undef DO
 }
 
+// 用NDL更新s中从[x,y]开始的size为[w,h]的rect
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
   // printf("SDL_UpdateRect(%x, %d, %d, %d, %d)\n", s, x, y, w, h);
   assert(s->format->BitsPerPixel == 32 || s->format->BitsPerPixel == 8);
@@ -133,11 +133,12 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
     dst_y = y;
   }
 
+  // 组建要传入NDL的uint32_t pixels[rect_w * rect_h * 4]
+  uint32_t *pixels = malloc((rect_w * rect_h) << 2);
+  uint32_t *pixel_ptr = pixels;
+  int seek_amount = s->w - rect_w;
   if (s->format->BitsPerPixel == 8) {
-    uint32_t *pixels = malloc(rect_w * rect_h * 4);
-    int seek_amount = s->w - rect_w;
     uint8_t *spixel_ptr = s->pixels + dst_y * s->w + dst_x;
-    uint32_t *pixel_ptr = pixels;
     SDL_Color *colors_ptr = s->format->palette->colors;
     for (int i = 0; i < rect_h; ++i) {
       for (int j = 0; j < rect_w; ++j) {
@@ -147,11 +148,17 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
       }
       spixel_ptr += seek_amount;
     }
-    NDL_DrawRect(pixels, dst_x, dst_y, rect_w, rect_h);
-    free(pixels);
   } else {
-    NDL_DrawRect(s->pixels, dst_x, dst_y, rect_w, rect_h);
+    uint32_t *spixel_ptr = s->pixels + dst_y * s->w + dst_x;
+    for (int i = 0; i < rect_h; ++i) {
+      for (int j = 0; j < rect_w; ++j) {
+        *(pixel_ptr++) = *(spixel_ptr++);
+      }
+      spixel_ptr += seek_amount;
+    }
   }
+  NDL_DrawRect(pixels, dst_x, dst_y, rect_w, rect_h);
+  free(pixels); // am中的free什么都没做，所以完全可能程序运行一段时间后，malloc堆区把内存撑爆
 }
 
 // APIs below are already implemented.

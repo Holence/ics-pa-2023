@@ -823,15 +823,21 @@ bash ./convert.sh
 
 ### Pal
 
-官网下载 http://update1.baiyou100.com/resource/Pal98rqp.zip
+data文件 https://github.com/paldn/sdlpal/
 
-native上运行`Segmentation fault (core dumped)`，应该是文件找不到，在`native.cpp`的`redirect_path()`打印打开文件的名字，要把网上下载的文件名开头字母改成小写
+native上运行`Segmentation fault (core dumped)`，应该是找不到文件，在`native.cpp`的`redirect_path()`打印打开文件的名字
 
 ```
-# pla/repo/data下需要的文件，总共47MB左右，刚好小于ramdisk.img的上限
+# pla/repo/data下需要的文件，总共26MB左右
+1.rpg # 进入读档、存档的界面需要目录里有这5个文件（自己新建全空文件的也行）
+2.rpg
+3.rpg
+4.rpg
+5.rpg
 abc.mkf
 ball.mkf
 data.mkf
+desc.dat
 f.mkf
 fbp.mkf
 fire.mkf
@@ -844,11 +850,11 @@ pat.mkf
 rgm.mkf
 rng.mkf
 sdlpal.cfg <-- 手动添加
-sounds.mkf
 sss.mkf
+voc.mkf
 wor16.asc
 wor16.fon
-word.da
+word.dat
 ```
 
 除了要修改`libminiSDL`的`video.c`中三个函数外，还需要正确实现`event.c`中的`SDL_GetKeyState`，才能正常启动
