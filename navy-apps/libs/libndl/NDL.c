@@ -89,7 +89,7 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
   lseek(fd, screen_width_bytes * y + (x << 2), SEEK_CUR);               // 跳到[canvas_x + x, canvas_y + y]的地方
   for (int i = 0; i < h; i++) {
     write(fd, pixels, rect_width_bytes); // 写一整行，其中的open_offset+=rect_width_bytes的
-    lseek(fd, seek_amount, SEEK_CUR);    // 跳到下一行的位置
+    lseek(fd, seek_amount, SEEK_CUR);    // 跳到下一行的位置（这里最后一次循环的时候，可能会超出fb.size的边界，但并不用error）
     pixels += w;                         // w不用乘4,因为它已经是(uint32_t *)了
   }
 }

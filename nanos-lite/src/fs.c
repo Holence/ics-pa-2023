@@ -77,9 +77,13 @@ int fs_open(const char *pathname, int flags, int mode) {
 
 size_t fs_read(int fd, void *buf, size_t len) {
   if (file_table[fd].read) {
-    return file_table[fd].read(buf, file_table[fd].open_offset, len);
+    size_t ret = file_table[fd].read(buf, file_table[fd].open_offset, len);
+    if (file_table[fd].size > 0) {
+      file_table[fd].open_offset += len;
+    }
+    return ret;
   } else {
-    // 若偏移量超过边界，则读完
+    // 若偏移量超过边界，则读到文件结尾
     if (file_table[fd].open_offset + len > file_table[fd].size) {
       len = file_table[fd].size - file_table[fd].open_offset;
     }
@@ -90,16 +94,20 @@ size_t fs_read(int fd, void *buf, size_t len) {
 }
 
 size_t fs_write(int fd, const void *buf, size_t len) {
-  size_t old_offset = file_table[fd].open_offset;
-  size_t new_offset = old_offset + len;
-  // 注意偏移量不要越过文件的边界
-  if (file_table[fd].size > 0)
-    assert(new_offset <= file_table[fd].size);
-  file_table[fd].open_offset = new_offset;
   if (file_table[fd].write) {
-    return file_table[fd].write(buf, old_offset, len);
+    size_t ret = file_table[fd].write(buf, file_table[fd].open_offset, len);
+    if (file_table[fd].size > 0) {
+      file_table[fd].open_offset += len;
+    }
+    return ret;
   } else {
-    return ramdisk_write(buf, old_offset + file_table[fd].disk_offset, len);
+    // 若偏移量超过边界，则写到文件结尾
+    if (file_table[fd].open_offset + len > file_table[fd].size) {
+      len = file_table[fd].size - file_table[fd].open_offset;
+    }
+    size_t ret = ramdisk_write(buf, file_table[fd].open_offset + file_table[fd].disk_offset, len);
+    file_table[fd].open_offset += len;
+    return ret;
   }
 }
 
@@ -118,8 +126,6 @@ size_t fs_lseek(int fd, size_t offset, int whence) {
   default:
     return -1;
   }
-  // 注意偏移量不要越过文件的边界
-  assert(new_offset >= 0 && new_offset <= file_table[fd].size);
   file_table[fd].open_offset = new_offset;
   return new_offset;
 }

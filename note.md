@@ -693,8 +693,9 @@ TODO: 懒得做了
 
 - fd就是file_table的下标
 - 需要自己增加一个记录open_offset的地方（直接加在file_table中就行了）
-- read被调用时可能是循环着读一整块进入buf，到最后`open_offset+offset`会超出`size`，这时不算错误，读到结尾就行了。
-- write要是`open_offset+offset`超出了`size`，就报错
+- read/write传入的len，如果`open_offset+len`会超出`size`，不算错误，只需要读/写到文件结尾就行了，返回读/写的字节数。
+- lseek允许超出边界，照样返回最终的open_offset
+  > lseek() allows the file offset to be set beyond the end of the file (but this does not change the size of the file). 
 
 ### 虚拟文件系统
 
