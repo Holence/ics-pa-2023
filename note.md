@@ -821,6 +821,38 @@ bash ./convert.sh
 
 读写文件，丫`fopen(filename, "r")`第二个参数是char*,不是char！！！写成'r'的话报错竟然是Segmentation fault……
 
+### Pal
+
+官网下载 http://update1.baiyou100.com/resource/Pal98rqp.zip
+
+native上运行`Segmentation fault (core dumped)`，应该是文件找不到，在`native.cpp`的`redirect_path()`打印打开文件的名字，要把网上下载的文件名开头字母改成小写
+
+```
+# pla/repo/data下需要的文件，总共47MB左右，刚好小于ramdisk.img的上限
+abc.mkf
+ball.mkf
+data.mkf
+f.mkf
+fbp.mkf
+fire.mkf
+gop.mkf
+m.msg
+map.mkf
+mgo.mkf
+mus.mkf
+pat.mkf
+rgm.mkf
+rng.mkf
+sdlpal.cfg <-- 手动添加
+sounds.mkf
+sss.mkf
+wor16.asc
+wor16.fon
+word.da
+```
+
+除了要修改`libminiSDL`的`video.c`中三个函数外，还需要正确实现`event.c`中的`SDL_GetKeyState`，才能正常启动
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?

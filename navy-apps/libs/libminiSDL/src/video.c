@@ -4,15 +4,24 @@
 #include <string.h>
 #include <stdlib.h>
 
+// 把src的srcrect区域中的pixels 复制到 dst的dstrect区域中pixels
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
+  // printf("SDL_BlitSurface(%x, %x, %x, %x)\n", src, srcrect, dst, dstrect);
   assert(dst && src);
-  assert(dst->format->BitsPerPixel == 32);
+  assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
-  uint32_t *src_pixels = (uint32_t *)src->pixels;
-  uint32_t *dst_pixels = (uint32_t *)dst->pixels;
+
+  // 全屏刷新
   if (srcrect == NULL && dstrect == NULL) {
-    memcpy(dst_pixels, src_pixels, src->w * src->h * 4);
-  } else {
+    if (dst->format->BitsPerPixel == 32) {
+      memcpy(dst->pixels, src->pixels, src->w * src->h * 4);
+    } else {
+      memcpy(dst->pixels, src->pixels, src->w * src->h);
+    }
+  }
+
+  // rect刷新
+  else {
     int rect_w, rect_h, src_x, src_y, dst_x, dst_y;
     if (srcrect) {
       rect_w = srcrect->w;
@@ -36,23 +45,42 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_
       dst_y = 0;
     }
 
-    int dst_seek_amount = dst->w - rect_w;
-    int src_seek_amount = src->w - rect_w;
-    dst_pixels += dst_y * dst->w + dst_x;
-    src_pixels += src_y * src->w + src_x;
-    for (int i = 0; i < rect_h; ++i) {
-      for (int j = 0; j < rect_w; ++j) {
-        *(dst_pixels++) = *(src_pixels++);
+    if (dst->format->BitsPerPixel == 32) {
+      uint32_t *src_pixels = (uint32_t *)src->pixels;
+      uint32_t *dst_pixels = (uint32_t *)dst->pixels;
+      int dst_seek_amount = dst->w - rect_w;
+      int src_seek_amount = src->w - rect_w;
+      dst_pixels += dst_y * dst->w + dst_x;
+      src_pixels += src_y * src->w + src_x;
+      for (int i = 0; i < rect_h; ++i) {
+        for (int j = 0; j < rect_w; ++j) {
+          *(dst_pixels++) = *(src_pixels++);
+        }
+        dst_pixels += dst_seek_amount;
+        src_pixels += src_seek_amount;
       }
-      dst_pixels += dst_seek_amount;
-      src_pixels += src_seek_amount;
+    } else {
+      uint8_t *src_pixels = (uint8_t *)src->pixels;
+      uint8_t *dst_pixels = (uint8_t *)dst->pixels;
+      int dst_seek_amount = dst->w - rect_w;
+      int src_seek_amount = src->w - rect_w;
+      dst_pixels += dst_y * dst->w + dst_x;
+      src_pixels += src_y * src->w + src_x;
+      for (int i = 0; i < rect_h; ++i) {
+        for (int j = 0; j < rect_w; ++j) {
+          *(dst_pixels++) = *(src_pixels++);
+        }
+        dst_pixels += dst_seek_amount;
+        src_pixels += src_seek_amount;
+      }
     }
   }
 }
 
 // This function performs a fast fill of the given rectangle with color. If dstrect is NULL, the whole surface will be filled with color.
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
-  assert(dst->format->BitsPerPixel == 32);
+  // printf("SDL_FillRect(%x, %x, %x)\n", dst, dstrect, color);
+  assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
   uint32_t *pixels = (uint32_t *)dst->pixels;
   int width = dst->w;
   int rect_w, rect_h;
@@ -65,21 +93,64 @@ void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
     pixels += dstrect->y * width + dstrect->x;
   }
   int seek_amount = width - rect_w;
-  for (int i = 0; i < rect_h; ++i) {
-    for (int j = 0; j < rect_w; ++j) {
-      *(pixels++) = color;
+
+  if (dst->format->BitsPerPixel == 32) {
+    for (int i = 0; i < rect_h; ++i) {
+      for (int j = 0; j < rect_w; ++j) {
+        *(pixels++) = color;
+      }
+      pixels += seek_amount;
     }
-    pixels += seek_amount;
+  } else {
+    SDL_Color *colors_ptr = dst->format->palette->colors;
+    for (int i = 0; i < rect_h; ++i) {
+      for (int j = 0; j < rect_w; ++j) {
+        *(pixels++) = colors_ptr[color].a;
+      }
+      pixels += seek_amount;
+    }
   }
 }
 
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
-  assert(s->format->BitsPerPixel == 32);
+  // printf("SDL_UpdateRect(%x, %d, %d, %d, %d)\n", s, x, y, w, h);
+  assert(s->format->BitsPerPixel == 32 || s->format->BitsPerPixel == 8);
+
+  int rect_w;
+  int rect_h;
+  int dst_x;
+  int dst_y;
   if (x == 0 && y == 0 && w == 0 && h == 0) {
     // If 'x', 'y', 'w' and 'h' are all 0, SDL_UpdateRect will update the entire screen.
-    NDL_DrawRect((uint32_t *)s->pixels, 0, 0, s->w, s->h);
+    rect_w = s->w;
+    rect_h = s->h;
+    dst_x = 0;
+    dst_y = 0;
   } else {
-    NDL_DrawRect((uint32_t *)s->pixels, x, y, w, h);
+    rect_w = w;
+    rect_h = h;
+    dst_x = x;
+    dst_y = y;
+  }
+
+  if (s->format->BitsPerPixel == 8) {
+    uint32_t *pixels = malloc(rect_w * rect_h * 4);
+    int seek_amount = s->w - rect_w;
+    uint8_t *spixel_ptr = s->pixels + dst_y * s->w + dst_x;
+    uint32_t *pixel_ptr = pixels;
+    SDL_Color *colors_ptr = s->format->palette->colors;
+    for (int i = 0; i < rect_h; ++i) {
+      for (int j = 0; j < rect_w; ++j) {
+        SDL_Color c = colors_ptr[*(spixel_ptr++)];
+        uint32_t color = c.a << 24 | c.r << 16 | c.g << 8 | c.b;
+        *(pixel_ptr++) = color;
+      }
+      spixel_ptr += seek_amount;
+    }
+    NDL_DrawRect(pixels, dst_x, dst_y, rect_w, rect_h);
+    free(pixels);
+  } else {
+    NDL_DrawRect(s->pixels, dst_x, dst_y, rect_w, rect_h);
   }
 }
 

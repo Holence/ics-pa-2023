@@ -134,6 +134,7 @@ static void open_audio() {
 }
 
 static const char* redirect_path(char *newpath, const char *path) {
+  // fprintf(stderr, "open file: %s %s\n", newpath, path);
   get_fsimg_path(newpath, path);
   if (0 == access(newpath, 0)) {
     fprintf(stderr, "Redirecting file open: %s -> %s\n", path, newpath);
