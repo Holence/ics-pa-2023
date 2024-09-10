@@ -28,12 +28,16 @@ static struct {
   char name[64];
   vaddr_t start;
   vaddr_t end;
-} Functions[256];
+} Functions[512];
 
 static int functions_nums = 0;
 void record_function(char *name, vaddr_t start, vaddr_t size) {
-  if (functions_nums == 256) {
-  }
+  assert(functions_nums < 512);
+  assert(strlen(name) < 64);
+
+  // 不要侦测putch了，太烦人了
+  if (strcmp(name, "putch") == 0)
+    return;
   strcpy(Functions[functions_nums].name, name);
   Functions[functions_nums].start = start;
   Functions[functions_nums].end = start + size;
@@ -41,6 +45,7 @@ void record_function(char *name, vaddr_t start, vaddr_t size) {
 }
 
 static bool ftrace_enable = false;
+// 解析elf的func信息，记录到Functions数组中（可以重复调用，以添加多个elf的func信息）
 void init_ftrace(char *filename) {
   if (filename == NULL) {
     return;
@@ -101,42 +106,42 @@ void init_ftrace(char *filename) {
   ftrace_enable = true;
 }
 
-static int depth = 0;
+static inline void print_frace(vaddr_t address, bool jump_in, char *name) {
+  static int depth = 0;
+  if (jump_in) {
+    depth++;
+  }
+  _Log(FMT_WORD ":"
+                "%*c"
+                "[%d]%s %s\n",
+       address, depth, ' ', depth, jump_in == true ? "Call " : "Ret  ", name);
+  if (!jump_in) {
+    depth--;
+  }
+}
+
 void ftrace_log(vaddr_t address, bool jump_in) {
+  static bool in_printf = false;
   if (ftrace_enable) {
-    int func_index = -1;
+    char *func_name = NULL;
     for (int i = 0; i < functions_nums; i++) {
       // 函数真实范围，包含start，不包含end
       if (address >= Functions[i].start && address < Functions[i].end) {
-        func_index = i;
+        func_name = Functions[i].name;
         break;
       }
     }
-    /*
-     * 关于ecall的ftrace
-     * 因为navy程序并不在nanos的elf中，navy程序调用ecall的地方是追踪不到的
-     * 只有nanos中的yield才会有ecall
-     * 而且readelf看到 __am_asm_trap 是 NOTYPE 而不是 FUNC
-     * 所以只能看到这样的部分：
-     * Call  __am_irq_handle
-     *  Call  do_event
-     *   Call  do_syscall
-     *    Call  putch
-     *    Ret   putch
-     *   Ret   do_syscall
-     *  Ret   do_event
-     * Ret   __am_irq_handle
-     */
-    if (func_index != -1) {
-      if (jump_in) {
-        depth++;
+
+    if (func_name) {
+      // printf里的一堆调用太烦人了
+      if (strcmp(func_name, "printf") == 0) {
+        in_printf = jump_in;
+        print_frace(address, jump_in, func_name);
+        return;
       }
-      _Log(FMT_WORD ":"
-                    "%*c"
-                    "%s %s\n",
-           address, depth, ' ', jump_in == true ? "Call " : "Ret  ", Functions[func_index].name);
-      if (!jump_in) {
-        depth--;
+      if (!in_printf) {
+        print_frace(address, jump_in, func_name);
+        return;
       }
     }
   }
