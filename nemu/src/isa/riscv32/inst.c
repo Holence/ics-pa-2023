@@ -144,7 +144,7 @@ static int decode_exec(Decode *s) {
           // Call: jalr ra, rs1, imm (rd==ra)
           if (rd == 1) { ftrace_log(s->dnpc, true); } // 传入的是跳进哪儿的地址
           // Return: ret == jalr x0, ra, 0 (rs1==ra)
-          if (rs1 == 1) { ftrace_log(s->pc, false); } // 传入的是从哪儿返回的地址
+          if (rs1 == 1 && imm == 0) { ftrace_log(s->pc, false); } // 传入的是从哪儿返回的地址
 #endif
   );
   // csr
