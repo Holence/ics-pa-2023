@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   // test expr in PA 1.4
-  test_expr();
+  // test_expr();
 
   /* Start engine. */
   engine_start();

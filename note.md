@@ -316,13 +316,19 @@ nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abst
 
 itrace、iringbuf、mtrace就在nemu里动动手脚即可。
 
-ftrace需要读取elf，要找出当前运行的指令行对应在哪个函数内，要找的是Section里的symtab和strtab两个表，symtab中有函数的地址信息，strtab里有所有字符串的信息。所以需要定位到Section Header Table，找到其中symtab和strtab两个表的地址。运行程序时碰到`jalr`和`jal`两个指令，判断是call还是ret，看当前指令的pc位于symtab中哪个function的地址范围内，则查找到strtab中该函数的名字。
+### ftrace
 
-要ftrace的话，运行nemu就需要额外传入elf文件（因为`$(IMAGE).bin`文件是raw binary，啥都没了），在`/abstract-machine/scripts/platform/nemu.mk`中设置运行nemu时要传入的参数`ARGS="-e $(IMAGE).elf $(NEMUFLAGS)"`
+- 要ftrace的话，运行nemu就需要额外传入elf文件（因为`$(IMAGE).bin`文件是raw binary，啥都没了），自己规定用`-e xxx.elf`的格式传入
+- ftrace需要读取elf，要找出当前运行的指令行对应在哪个函数内，要找的是Section里的symtab和strtab两个表，symtab中有函数的地址信息，strtab里有所有字符串的信息。所以需要定位到Section Header Table，找到其中symtab和strtab两个表的地址。运行程序时碰到`jalr`和`jal`两个指令，判断是call还是ret，看当前指令的pc位于symtab中哪个function的地址范围内，则查找到strtab中该函数的名字。
+- ftrace实现出来只是在实时打印全部的函数调用过程，用个int depth记录深度然后打印缩进即可，感觉也没多少机会会用这个功能。若要实现backtrace打印某个时刻的函数调用栈，得用栈的数据结构push、pop记录函数，懒得做了。
 
-ftrace实现出来只是在实时打印全部的函数调用过程，用个int depth记录深度然后打印缩进即可，感觉也没多少机会会用这个功能。若要实现backtrace打印某个时刻的函数调用栈，得用栈的数据结构push、pop记录函数，懒得做了。
+修改am中的`/abstract-machine/scripts/platform/nemu.mk`，添加一个target方便开启ftrace模式：
 
----
+```makefile
+# make ARCH=riscv32-nemu run_ftrace 
+run_ftrace: image
+	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="-e $(IMAGE).elf $(NEMUFLAGS)" IMG=$(IMAGE).bin
+```
 
 > [!NOTE]
 > 不匹配的函数调用和返回，尝试结合反汇编结果, 分析为什么会出现这一现象：看反汇编代码，在f2中调用f1的是正常的`jalr rs`（`jalr ra, rs, 0`），所以触发打印log`call f1`，而f1跳向f0用的是`jr`（`jalr x0, rs, 0`），也就是不把pc存到`ra`就跳出去，将来不用跳回到这条指令+4的地方，而是直接跳回到f1被调用的地方，也就是f2中调用处+4的地方。`jr`指令因为没有存`ra`，也就没被monitor视为是在call，所以从f1跳入f0的时候并不会触发打印`call f0`，而f0要返回了，ret指令会触发打印`ret f0`，所以就出现了`call f1`接着`ret f0`的现象。
@@ -346,7 +352,7 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 >   Ret  f2
 > ```
 
----
+### 编写更多的测试
 
 要编写详尽的test来测试klib，懒得自己写了，看有人引用了glibc的测试，我也引用一下吧: https://github.com/alelievr/libft-unit-test/blob/master/hardcore-mode/
 
@@ -359,7 +365,7 @@ ftrace实现出来只是在实时打印全部的函数调用过程，用个int d
 >     在native上测试klib，并不能跳入klib里的函数❓在klib还没做printf的阶段，只能用二分法找到出错的用例定位到是哪个klib里的函数有问题，然后把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）
 >   - 保证nemu正确: nemu + glibc 跑 am-kernels（后面有difftest就更全面了）
 
----
+### difftest
 
 difftest部分，`/nemu/src/cpu/difftest/ref.c`没有任何用处，在`nemu/src/cpu/difftest/dut.c`的`init_difftest()`中已经用`dlsym()`去`/nemu/tools/spike-diff/build/riscv32-spike-so`去寻找函数了，其实函数在`/nemu/tools/spike-diff/difftest.cc`中。
 
@@ -631,7 +637,20 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 
 ### 支持多个ELF的ftrace
 
-TODO: 懒得做了
+之前nemu只知道nanos+am的function信息，navy程序的信息需要额外传入。nemu里`init_ftrace`可以多次调用，每次调用就是加入一个elf文件的function信息，所以只需要运行时传入多次`-e`参数就行。
+
+```makefile
+# /abstract-machine/scripts/platform/nemu.mk
+# make ARCH=riscv32-nemu run_ftrace NAVY_ELF=$NAVY_HOME/apps/bird/build/bird-riscv32
+ELF_ARGS = -e $(IMAGE).elf
+ifneq ($(NAVY_ELF), )
+	ELF_ARGS := $(ELF_ARGS) -e $(NAVY_ELF)
+endif
+run_ftrace: image
+	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(ELF_ARGS) $(NEMUFLAGS)" IMG=$(IMAGE).bin
+```
+
+> 因为批处理系统中所有navy程序的function地址区间都是一样的，所以目前不能传入多个navy elf！后面分时多进程后怎么解决这个问题❓
 
 ## 3.4
 

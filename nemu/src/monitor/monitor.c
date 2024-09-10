@@ -44,9 +44,6 @@ void sdb_set_batch_mode();
 static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
-#ifdef CONFIG_FTRACE
-static char *elf_file = NULL;
-#endif
 static int difftest_port = 1234;
 
 static long load_img() {
@@ -101,7 +98,8 @@ static int parse_args(int argc, char *argv[]) {
       break;
 #ifdef CONFIG_FTRACE
     case 'e':
-      elf_file = optarg;
+      /* Initialize ftrace. */
+      init_ftrace(optarg);
       break;
 #endif
     case 1:
@@ -149,11 +147,6 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);
-
-#ifdef CONFIG_FTRACE
-  /* Initialize ftrace. */
-  init_ftrace(elf_file);
-#endif
 
   /* Initialize the simple debugger. */
   init_sdb();

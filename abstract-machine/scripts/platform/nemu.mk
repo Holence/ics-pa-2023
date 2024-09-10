@@ -31,8 +31,16 @@ image: $(IMAGE).elf
 run: image
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin
 
+# use function info in IMAGE.elf
+# make ARCH=riscv32-nemu run_ftrace 
+# use function info in IMAGE.elf and a navy elf
+# make ARCH=riscv32-nemu run_ftrace NAVY_ELF=$NAVY_HOME/apps/bird/build/bird-riscv32
+ELF_ARGS = -e $(IMAGE).elf
+ifneq ($(NAVY_ELF), )
+	ELF_ARGS := $(ELF_ARGS) -e $(NAVY_ELF)
+endif
 run_ftrace: image
-	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="-e $(IMAGE).elf $(NEMUFLAGS)" IMG=$(IMAGE).bin
+	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(ELF_ARGS) $(NEMUFLAGS)" IMG=$(IMAGE).bin
 
 run_batch: image
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="-b $(NEMUFLAGS)" IMG=$(IMAGE).bin
