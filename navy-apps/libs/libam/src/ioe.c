@@ -62,6 +62,11 @@ static void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
   NDL_DrawRect(ctl->pixels, ctl->x, ctl->y, ctl->w, ctl->h);
 }
 
+void __am_audio_config(AM_AUDIO_CONFIG_T *cfg) {
+  cfg->present = false;
+  // cfg->bufsize = inl(AUDIO_SBUF_SIZE_ADDR);
+}
+
 static void *lut[128] = {
     [AM_TIMER_CONFIG] = __am_timer_config,
     // [AM_TIMER_RTC] = __am_timer_rtc,
@@ -72,7 +77,7 @@ static void *lut[128] = {
     [AM_GPU_FBDRAW] = __am_gpu_fbdraw,
     // [AM_GPU_STATUS] = __am_gpu_status,
     // [AM_UART_CONFIG] = __am_uart_config,
-    // [AM_AUDIO_CONFIG] = __am_audio_config,
+    [AM_AUDIO_CONFIG] = __am_audio_config,
     // [AM_AUDIO_CTRL] = __am_audio_ctrl,
     // [AM_AUDIO_STATUS] = __am_audio_status,
     // [AM_AUDIO_PLAY] = __am_audio_play,

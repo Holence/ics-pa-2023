@@ -602,11 +602,11 @@ navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被na
 直接把程序装入到elf segment的vaddr指定的地方，也就是0x83000000往高的区块。
 
 > [!TIP]
-> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从0x8001C000往上的，岂不是会被覆盖？
+> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从`_heap_start`往上的，岂不是会被覆盖？
 >
 > navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上❓）
 >
-> nanos的堆区仍旧是am的klib里的`malloc()`函数，`0x80000000-0x83000000`都是安全的部分，nanos中没什么需要malloc的，所以不太可能会覆盖到装入的navy程序。
+> nanos的堆区仍旧是am的klib里的`malloc()`函数，`[_heap_start, 0x83000000]`都是安全的部分，nanos中没什么需要malloc的，所以不太可能会覆盖到装入的navy程序。（可以在klib的`malloc`中加个`assert(addr < 0x83000000)`）
 
 ### 操作系统的运行时环境
 
@@ -633,7 +633,7 @@ a7为-1时`ev.event = EVENT_YIELD`，其他值时是`ev.event = EVENT_SYSCALL`
 
 ### 堆区管理
 
-这里说的`_end`不是nanos装入nemu内存的`_end`地址，而是navy装入内存的`_end`地址，给它分配堆是分配navy程序.bss段上方的空间。
+这里说的`_end`不是nanos装入nemu内存的`_end`地址（`/abstract-machine/scripts/linker.ld`），而是navy装入内存的`_end`地址（elf segment load进入内存后.bss的顶部地址，见`man end`）。navy的堆空间是从`_end`到顶上的所有空间`[_end, PMEM_END]`
 
 ### 支持多个ELF的ftrace
 
@@ -833,6 +833,21 @@ word.dat
 
 - native运行: 在`/navy-apps/apps/am-kernels`中`make ISA=native run`，运行am-kernels中`benchmarks`和`kernels`文件夹下的程序，可以用`ALL=xxx`指定运行哪一个
 - nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
+
+heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中的`_end`到`PMEM_END`，但`PMEM_END`是nemu特有的，native没有啊？
+
+---
+
+> [!NOTE]
+> microbench为什么会运行错误
+>
+> 首先是启动阶段的`Segmentation fault`: `int main(const char *args)`所要的`args`，会拿去`strcmp`。之前结合abstract-machine编译时是两边约定好就传一个字符串，见[PA2.5 串口](#串口)。
+> - 而现在在navy中用native编译，没有了之前的那些操作（从env中提取`mainargs`再调用`main`并传入），运行时只是作为一个普通的程序直接从终端启动，传入的第一个参数就默认成了`int argc`，打印一下看到是大于0的值（传入参数的个数），所以被`strcmp`当作地址时就`Segmentation fault`了
+> - 若是到nanos中用riscv32-nemu编译，运行时用函数调用的方式启动`main()`，看到`argc`为0，就被当作为NULL，于是就顺利启动
+>
+> 即使删除掉启动阶段`strcmp`，直接默认跑`test`测试集，后面也会触发`Segmentation fault`，猜测应该是heap使用的问题❓: microbench中的每一组测试，都是从`heap.start`开始用内存，每做完一组测试，也不进行任何的清理，就把自定义的`hbrk`重置到`heap.start`，然后覆写。
+> - 若要native能这样用，那得让heap在一个预先申请的空间，所以heap该怎么设置❓
+> - nanos+am+riscv32-nemu对内存读写没什么限制，倒是能跑几个测试，但不知道为什么到A*时就`Segmentation fault`了❓
 
 # 二周目问题
 

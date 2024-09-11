@@ -27,6 +27,9 @@ size_t ramdisk_write(const void *buf, size_t offset, size_t len) {
 }
 
 void init_ramdisk() {
+  // 0x83000000 - 0x80000000 = 48 * 1024 * 1024
+  // ramdisk should be less than 48MB
+  assert(RAMDISK_SIZE < 48 * 1024 * 1024);
   Log("ramdisk info: start = %p, end = %p, size = %d bytes",
       &ramdisk_start, &ramdisk_end, RAMDISK_SIZE);
 }

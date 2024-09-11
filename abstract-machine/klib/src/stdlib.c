@@ -39,6 +39,7 @@ void *malloc(size_t size) {
   // #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
   static int heap_offset = 0;
   char *addr = heap.start + heap_offset;
+  assert((uintptr_t)addr < 0x83000000); // 禁止nanos的堆区生长到navy被load到内存中的地方
   heap_offset += ROUNDUP(size, 8);
   return addr;
   // #endif

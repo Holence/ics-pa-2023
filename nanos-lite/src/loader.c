@@ -57,7 +57,9 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 }
 
 void naive_uload(PCB *pcb, const char *filename) {
+  Log("Start Loading...");
   uintptr_t entry = loader(pcb, filename);
+  Log("Loading Finfished...");
   Log("Jump to entry = %p", entry);
   ((void (*)())entry)();
 }
