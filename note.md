@@ -825,6 +825,15 @@ word.dat
 
 除了要修改`libminiSDL`的`video.c`中三个函数外，还需要正确实现`event.c`中的`SDL_GetKeyState`，才能正常启动
 
+### simulated abstract-machine on navy
+
+在navy中实现am中的接口库libam，这样就能把am-kernels中的程序变身为navy程序，从而放到nanos上跑。
+
+用libNDL和libc的函数实现，文档里什么都没说，所以需要动很多脑筋！
+
+- native运行: 在`/navy-apps/apps/am-kernels`中`make ISA=native run`，运行am-kernels中`benchmarks`和`kernels`文件夹下的程序，可以用`ALL=xxx`指定运行哪一个
+- nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?

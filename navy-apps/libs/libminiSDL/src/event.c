@@ -28,6 +28,7 @@ int SDL_PollEvent(SDL_Event *ev) {
       for (int i = 0; i < LENGTH(keyname); i++) {
         if (key_name[0] == keyname[i][0] && strcmp(key_name, keyname[i]) == 0) {
           ev->key.keysym.sym = i;
+          break;
         }
       }
       keystate[ev->key.keysym.sym] = 1;
@@ -36,6 +37,7 @@ int SDL_PollEvent(SDL_Event *ev) {
       for (int i = 0; i < LENGTH(keyname); i++) {
         if (key_name[0] == keyname[i][0] && strcmp(key_name, keyname[i]) == 0) {
           ev->key.keysym.sym = i;
+          break;
         }
       }
       keystate[ev->key.keysym.sym] = 0;
