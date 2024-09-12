@@ -898,7 +898,13 @@ TODO
 
 ### 展示你的批处理系统
 
-easy
+menu、nterm都行，不过现在就没法通过exit进行halt关机了
+
+依旧没法传参数给navy程序的main，所以现在还是不能让fceux选择rom，后面怎么弄❓
+
+#### 添加开机音乐
+
+TODO
 
 # 二周目问题
 

@@ -42,6 +42,7 @@ char *trim(char *s) {
   return rtrim(ltrim(s));
 }
 
+static char *args[] = {NULL, NULL};
 static void sh_handle_cmd(const char *cmd) {
   char *cmd_ptr = const_cast<char *>(cmd);
   cmd_ptr = trim(cmd_ptr);
@@ -54,11 +55,12 @@ static void sh_handle_cmd(const char *cmd) {
       while (*p == ' ') {
         p++;
       }
-      sh_printf("%s", p);
+      sh_printf("%s\n", p);
     } else if (strcmp(op, "quit") == 0) {
       exit(0);
     } else {
-      int ret = execve(op, &op, NULL);
+      args[0] = op;
+      int ret = execvp(op, args);
       if (ret == -1) {
         sh_printf("Cannot find excutable file: %s\n", op);
       }
@@ -70,6 +72,7 @@ void builtin_sh_run() {
   sh_banner();
   sh_prompt();
 
+  setenv("PATH", "/bin", 0);
   while (1) {
     SDL_Event ev;
     if (SDL_PollEvent(&ev)) {
