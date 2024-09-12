@@ -22,18 +22,46 @@ static void sh_prompt() {
   sh_printf("sh> ");
 }
 
+#define isprint(c) ((unsigned)((c) - 0x20) <= (0x7e - 0x20))
+
+char *ltrim(char *s) {
+  while (!isprint(*s))
+    s++;
+  return s;
+}
+
+char *rtrim(char *s) {
+  char *back = s + strlen(s);
+  while (!isprint(*--back))
+    ;
+  *(back + 1) = '\0';
+  return s;
+}
+
+char *trim(char *s) {
+  return rtrim(ltrim(s));
+}
+
 static void sh_handle_cmd(const char *cmd) {
-  char *cmd_copy = const_cast<char *>(cmd);
-  char *op = strtok(cmd_copy, " ");
+  char *cmd_ptr = const_cast<char *>(cmd);
+  cmd_ptr = trim(cmd_ptr);
+  char *op = strtok(cmd_ptr, " ");
   if (op == NULL) {
     return;
   } else {
     if (strcmp(op, "echo") == 0) {
-      char *p = cmd_copy + strlen(op) + 1;
+      char *p = cmd_ptr + strlen(op) + 1;
       while (*p == ' ') {
         p++;
       }
       sh_printf("%s", p);
+    } else if (strcmp(op, "quit") == 0) {
+      exit(0);
+    } else {
+      int ret = execve(op, &op, NULL);
+      if (ret == -1) {
+        sh_printf("Cannot find excutable file: %s\n", op);
+      }
     }
   }
 }

@@ -68,7 +68,8 @@ int fs_open(const char *pathname, int flags, int mode) {
     }
   }
   if (fd == -1) {
-    panic("Cannot find file: %s", pathname);
+    Warning("Cannot find file: %s", pathname);
+    return -1;
   } else {
     file_table[fd].open_offset = 0; // 每次打开文件，重置指针
     return fd;

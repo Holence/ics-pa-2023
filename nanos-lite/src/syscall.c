@@ -2,6 +2,9 @@
 #include "syscall.h"
 #include <fs.h>
 #include <sys/time.h>
+#include <proc.h>
+
+void naive_uload(PCB *pcb, const char *filename);
 
 int sys_brk(void *addr) {
   // 目前堆区大小的调整总是成功
@@ -13,6 +16,12 @@ int sys_gettimeofday(void *tv, void *tz) {
   ((struct timeval *)tv)->tv_sec = us / 1000000;
   ((struct timeval *)tv)->tv_usec = us % 1000000;
   return 0;
+}
+
+int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
+  naive_uload(NULL, fname); // if succeed, 穿越时空
+  // if failed, return -1
+  return -1;
 }
 
 void do_syscall(Context *c) {
@@ -27,7 +36,9 @@ void do_syscall(Context *c) {
 
   case SYS_exit:
     Log("STRACE🔍: halt(%d)", a[1]);
-    halt(a[1]); // a0作为参数给halt
+    // halt(a[1]); // a0作为参数给halt
+    naive_uload(NULL, "/bin/menu");
+    // naive_uload(NULL, "/bin/nterm");
     break;
 
   case SYS_yield:
@@ -64,6 +75,11 @@ void do_syscall(Context *c) {
   case SYS_brk:
     // Log("STRACE🔍: sys_brk(0x%x)", a[1]);
     c->GPRx = sys_brk((void *)a[1]);
+    break;
+
+  case SYS_execve:
+    Log("STRACE🔍: sys_execve(%s, %s, %x)", (char *)a[1], *((char **)a[2]), (char **)a[3]);
+    c->GPRx = sys_execve((char *)a[1], (char **)a[2], (char **)a[3]);
     break;
 
   case SYS_gettimeofday:

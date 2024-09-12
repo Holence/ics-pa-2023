@@ -35,6 +35,14 @@ struct MenuItem {
   {"coremark", "/bin/coremark", NULL},
   {"dhrystone", "/bin/dhrystone", NULL},
   {"typing-game", "/bin/typing-game", NULL},
+  {"bad-apple", "/bin/bad-apple", NULL},
+  {"OSLab0 - Push Box", "/bin/171240502", NULL},
+  {"OSLab0 - Blendoku", "/bin/171240518", NULL},
+  {"OSLab0 - Avoid blocks", "/bin/171860013", NULL},
+  {"OSLab0 - Tetris", "/bin/171860508", NULL},
+  {"OSLab0 - 2048", "/bin/171860532", NULL},
+  {"OSLab0 - Guess Word", "/bin/171860575", NULL},
+  {"OSLab0 - Raiden", "/bin/171860637", NULL},
   {"ONScripter", "/bin/onscripter", NULL},
 };
 

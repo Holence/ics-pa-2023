@@ -867,12 +867,38 @@ heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中�
 - native中运行: 在`/navy-apps/apps/fceux`中`make ISA=native run mainargs=mario.nes`，这次就能通过`mainargs`传入`argv[0]`了！
 - nanos运行: `naive_uload`里是没法传入参数的（跳到的entry并不是`main`，而是`_start`），要选择运行的rom，只能去`/fceux-am/src/drivers/sdl/sdl.cpp:main`中修改默认赋值`romname = "mario.nes"`
 
+> TODO: 如何在Navy上运行Nanos-lite?
+>
+> 既然之前在am上运行过nemu，那现在应该也能在Navy上运行nemu，再在其上运行nanos❓待实验
+
 #### oslab0
 
 就161220016和171240511这两个同学的在navy native上跑不了
 
 - 161220016: 应该还是乱使用heap的问题
 - 171240511: "SDLTimer" received signal SIGSEGV
+
+### 声音
+
+TODO
+
+#### NPlayer
+
+#### PAL (带音乐和音效)
+
+#### Flappy Bird (带音效)
+
+### 基础设施(3)
+
+TODO
+
+#### 自由开关DiffTest模式
+
+#### 快照
+
+### 展示你的批处理系统
+
+easy
 
 # 二周目问题
 

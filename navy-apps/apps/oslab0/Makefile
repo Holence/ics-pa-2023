@@ -4,7 +4,10 @@ ifeq ($(wildcard repo/161220016/main.c),)
 endif
 
 GAMES = $(shell ls ./repo | grep -E "[0-9]{9}")
-ALL = $(GAMES)
+
+# ALL = $(GAMES)
+#     推箱子     Blendoku  躲避方块   俄罗斯方块  七色版2048 猜词小游戏  雷电
+ALL = 171240502 171240518 171860013 171860508 171860532 171860575 171860637
 ifeq ($(filter $(GAMES), $(ALL)),)
   $(error Expected games in {$(GAMES)}, Got "$(ALL)")
 endif

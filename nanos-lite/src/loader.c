@@ -29,6 +29,10 @@ size_t ramdisk_read(void *buf, size_t offset, size_t len);
 static uintptr_t loader(PCB *pcb, const char *filename) {
   int fd = fs_open(filename, 0, 0);
 
+  if (fd == -1) {
+    return (uintptr_t)NULL;
+  }
+
   Elf_Ehdr ehdr;
   fs_lseek(fd, 0, SEEK_SET);
   fs_read(fd, &ehdr, sizeof(ehdr));
@@ -57,9 +61,13 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 }
 
 void naive_uload(PCB *pcb, const char *filename) {
-  Log("Start Loading...");
+  Log("Start Loading %s", filename);
   uintptr_t entry = loader(pcb, filename);
-  Log("Loading Finfished...");
-  Log("Jump to entry = %p", entry);
-  ((void (*)())entry)();
+  if (entry) {
+    Log("Loading Finfished...");
+    Log("Jump to entry = %p", entry);
+    ((void (*)())entry)();
+  } else {
+    Warning("Loading Failed!!!");
+  }
 }
