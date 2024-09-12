@@ -832,22 +832,40 @@ word.dat
 用libNDL和libc的函数实现，文档里什么都没说，所以需要动很多脑筋！
 
 - native运行: 在`/navy-apps/apps/am-kernels`中`make ISA=native run`，运行am-kernels中`benchmarks`和`kernels`文件夹下的程序，可以用`ALL=xxx`指定运行哪一个
-- nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
+- nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`/nanos-lite/src/proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
 
 heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中的`_end`到`PMEM_END`，但`PMEM_END`是nemu特有的，native没有啊？
 
----
+#### microbench
 
 > [!NOTE]
 > microbench为什么会运行错误
 >
 > 首先是启动阶段的`Segmentation fault`: `int main(const char *args)`所要的`args`，会拿去`strcmp`。之前结合abstract-machine编译时是两边约定好就传一个字符串，见[PA2.5 串口](#串口)。
-> - 而现在在navy中用native编译，没有了之前的那些操作（从env中提取`mainargs`再调用`main`并传入），运行时只是作为一个普通的程序直接从终端启动，传入的第一个参数就默认成了`int argc`，打印一下看到是大于0的值（传入参数的个数），所以被`strcmp`当作地址时就`Segmentation fault`了
+> - 而现在在navy中用native编译，没有了之前的那些操作（之前是从env中提取`mainargs`再调用`main`并传入），现在是运行时只是作为一个普通的程序直接从终端启动，传入的第一个参数就默认成了`int argc`（即使按照`/navy-apps/scripts/native.mk`说的加上了`mainargs=test`也没用了），打印一下看到是大于0的值（传入参数的个数），所以被`strcmp`当作地址时就`Segmentation fault`了
 > - 若是到nanos中用riscv32-nemu编译，运行时用函数调用的方式启动`main()`，看到`argc`为0，就被当作为NULL，于是就顺利启动
 >
 > 即使删除掉启动阶段`strcmp`，直接默认跑`test`测试集，后面也会触发`Segmentation fault`，猜测应该是heap使用的问题❓: microbench中的每一组测试，都是从`heap.start`开始用内存，每做完一组测试，也不进行任何的清理，就把自定义的`hbrk`重置到`heap.start`，然后覆写。
 > - 若要native能这样用，那得让heap在一个预先申请的空间，所以heap该怎么设置❓
 > - nanos+am+riscv32-nemu对内存读写没什么限制，倒是能跑几个测试，但不知道为什么到A*时就`Segmentation fault`了❓
+
+#### fceux
+
+> [!TIP]
+> 如果出现`undefined reference to FCEUSND_Reset()`，去更新[这个commit](https://github.com/NJU-ProjectN/fceux-am/commit/9b167e7e47240cd8ef9a910242242c28affb713a)
+
+> [!TIP]
+> 需要把`/fceux-am/Makefile`中的`-D__NO_FILE_SYSTEM__`去掉让`/fceux-am/src/drivers/sdl/sdl.cpp:main`变为`int main(int argc, char *argv[])`的形式。
+>
+> 只有navy中编译时需要去掉`-D__NO_FILE_SYSTEM__`，直接在am中编译则不能去掉，否则无法编译。
+
+> [!TIP]
+> 因为在navy中编译时没有define `__ARCH_NATIVE` `__PLATFORM_QEMU` `__PLATFORM_NEMU`中的任意一个，所以在`/fceux-am/src/config.h`中会选择`PERF_CONFIG=PERF_LOW`，从而`SOUND_CONFIG=SOUND_NONE`
+>
+> 跑`mario3`会在`RegisterBWrite`中出错，原因是`PERF_CONFIG=PERF_LOW`中`define FUNC_IDX_MAX16`，`RegisterBWrite`中会`assert(i < FUNC_IDX_MAX);`。这里手动改为`define FUNC_IDX_MAX256`好像也没事，不知道为什么❓
+
+- native中运行: 在`/navy-apps/apps/fceux`中`make ISA=native run mainargs=mario.nes`，这次就能通过`mainargs`传入`argv[0]`了！
+- nanos运行: `naive_uload`里是没法传入参数的（跳到的entry并不是`main`，而是`_start`），要选择运行的rom，只能去`/fceux-am/src/drivers/sdl/sdl.cpp:main`中修改默认赋值`romname = "mario.nes"`
 
 # 二周目问题
 
