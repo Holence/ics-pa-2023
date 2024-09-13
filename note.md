@@ -884,6 +884,8 @@ heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中�
 
 nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`的小星星移植过来做个测试
 
+接着去libam把audio的部分补上，现在就可以在nanos中运行有声音的bad-apple了！（为了让ramdisk.img不超过48MB，并且同时包含pal和bad-apple，，bad-apple的声音频率和画幅大小都需要弄小一些）
+
 #### PAL (带音乐和音效)
 
 #### Flappy Bird (带音效)
