@@ -95,18 +95,35 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
   }
 }
 
+// 打开音频功能, 初始化声卡设备
 void NDL_OpenAudio(int freq, int channels, int samples) {
+  int fd = open("/dev/sbctl", O_WRONLY);
+  int *buf = (int *)malloc(sizeof(int) * 3);
+  buf[0] = freq;
+  buf[1] = channels;
+  buf[2] = samples;
+  write(fd, buf, sizeof(int) * 3);
+  free(buf);
 }
 
+// 关闭音频功能
 void NDL_CloseAudio() {
+  // 应该什么都不用做吧
 }
 
+// 播放缓冲区`buf`中长度为`len`字节的音频数据, 返回成功播放的音频数据的字节数
+// 是返回成功流入的字节数吧❓流入了不一定立刻被播放
 int NDL_PlayAudio(void *buf, int len) {
-  return 0;
+  int fd = open("/dev/sb", O_WRONLY);
+  return write(fd, buf, len);
 }
 
+// 返回当前声卡设备流缓冲区的空闲字节数
 int NDL_QueryAudio() {
-  return 0;
+  int fd = open("/dev/sbctl", O_RDONLY);
+  int count;
+  read(fd, &count, sizeof(int));
+  return count;
 }
 
 int NDL_Init(uint32_t flags) {

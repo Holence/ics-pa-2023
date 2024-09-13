@@ -57,6 +57,32 @@ size_t fb_write(void *buf, size_t offset, size_t len) {
   return len;
 }
 
+// 如果声卡的流缓冲区空闲位置不足, 写操作将会等待, 直到音频数据完全写入流缓冲区之后才会返回
+// am中的audio已经实现了阻塞，这里直接调用就行了
+size_t sb_write(void *buf, size_t offset, size_t len) {
+  Area sbuf;
+  sbuf.start = buf;
+  sbuf.end = buf + len;
+  io_write(AM_AUDIO_PLAY, sbuf);
+  return len;
+}
+
+// 初始化声卡设备, 应用程序需要一次写入3个int整数共12字节, 3个整数会被依次解释成freq, channels, samples
+size_t sbctl_write(void *buf, size_t offset, size_t len) {
+  assert(len == sizeof(int) * 3);
+  int *ptr = (int *)buf;
+  io_write(AM_AUDIO_CTRL, ptr[0], ptr[1], ptr[2]);
+  return sizeof(int) * 3;
+}
+
+// 查询声卡设备的状态, 应用程序可以读出一个int整数, 表示当前声卡设备流缓冲区的空闲字节数
+size_t sbctl_read(void *buf, size_t offset, size_t len) {
+  assert(len == sizeof(int));
+  int left = io_read(AM_AUDIO_CONFIG).bufsize - io_read(AM_AUDIO_STATUS).count;
+  *((int *)buf) = left;
+  return sizeof(int);
+}
+
 void init_device() {
   Log("Initializing devices...");
   ioe_init();

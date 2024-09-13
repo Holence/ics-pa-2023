@@ -6,6 +6,9 @@ size_t serial_write(const void *buf, size_t offset, size_t len);
 size_t events_read(void *buf, size_t offset, size_t len);
 size_t dispinfo_read(void *buf, size_t offset, size_t len);
 size_t fb_write(const void *buf, size_t offset, size_t len);
+size_t sb_write(const void *buf, size_t offset, size_t len);
+size_t sbctl_write(const void *buf, size_t offset, size_t len);
+size_t sbctl_read(void *buf, size_t offset, size_t len);
 
 typedef size_t (*ReadFn)(void *buf, size_t offset, size_t len);
 typedef size_t (*WriteFn)(const void *buf, size_t offset, size_t len);
@@ -30,6 +33,9 @@ enum { FD_STDIN,
        // 按行优先存储所有像素的颜色值(32位)
        // 每个像素是`00rrggbb`的形式, 8位颜色
        FD_FB,
+
+       FD_SB,
+       FD_SBCTL,
 };
 
 size_t invalid_read(void *buf, size_t offset, size_t len) {
@@ -49,6 +55,8 @@ static Finfo file_table[] __attribute__((used)) = {
     [FD_STDERR] = {"stderr", 0, 0, 0, invalid_read, serial_write},
     [FD_EVENT] = {"/dev/events", 0, 0, 0, events_read, invalid_write},
     [FD_FB] = {"/dev/fb", 0, 0, 0, invalid_read, fb_write},
+    [FD_SB] = {"/dev/sb", 0, 0, 0, invalid_read, sb_write},
+    [FD_SBCTL] = {"/dev/sbctl", 0, 0, 0, sbctl_read, sbctl_write},
     {"/proc/dispinfo", 0, 0, 0, dispinfo_read, invalid_write},
 #include "files.h"
 };
