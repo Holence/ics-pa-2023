@@ -107,8 +107,15 @@ void NDL_OpenAudio(int freq, int channels, int samples) {
 }
 
 // 关闭音频功能
+// 与nemu约定，三个参数全0时，召唤真机的 SDL_CloseAudio
 void NDL_CloseAudio() {
-  // 应该什么都不用做吧
+  int fd = open("/dev/sbctl", O_WRONLY);
+  int *buf = (int *)malloc(sizeof(int) * 3);
+  buf[0] = 0;
+  buf[1] = 0;
+  buf[2] = 0;
+  write(fd, buf, sizeof(int) * 3);
+  free(buf);
 }
 
 // 播放缓冲区`buf`中长度为`len`字节的音频数据, 返回成功播放的音频数据的字节数

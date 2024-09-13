@@ -61,22 +61,30 @@ static void add_more_data(void *userdata, Uint8 *stream, int len) {
   audio_base[reg_count] -= transfer_count;
 }
 
+static SDL_AudioSpec s = {};
 static void audio_io_handler(uint32_t offset, int len, bool is_write) {
   // 只有写reg_init时才有动作
-  if (offset == reg_init * 4) {
+  if (offset == 0x10) {
     // 只写
     assert(is_write);
-    SDL_AudioSpec s = {};
-    s.format = AUDIO_S16SYS; // 假设系统中音频数据的格式总是使用16位有符号数来表示
-    s.userdata = NULL;       // 不使用
-    s.freq = (int)audio_base[reg_freq];
-    s.channels = (Uint8)audio_base[reg_channels];
-    s.samples = (Uint16)audio_base[reg_samples];
-    s.callback = add_more_data;
+    if ((int)audio_base[reg_freq] != 0 && (Uint8)audio_base[reg_channels] != 0 && (Uint16)audio_base[reg_samples] != 0) {
+      s.format = AUDIO_S16SYS; // 假设系统中音频数据的格式总是使用16位有符号数来表示
+      s.userdata = NULL;       // 不使用
+      s.freq = (int)audio_base[reg_freq];
+      s.channels = (Uint8)audio_base[reg_channels];
+      s.samples = (Uint16)audio_base[reg_samples];
+      s.callback = add_more_data;
+      Log("Nemu Open Audio %d %d %d", s.freq, s.channels, s.samples);
 
-    SDL_InitSubSystem(SDL_INIT_AUDIO);
-    SDL_OpenAudio(&s, NULL);
-    SDL_PauseAudio(0);
+      SDL_InitSubSystem(SDL_INIT_AUDIO);
+      SDL_OpenAudio(&s, NULL);
+      SDL_PauseAudio(0);
+    } else {
+      Log("Nemu Close Audio");
+      SDL_CloseAudio();
+      sbuf_index = 0;            // reset index
+      audio_base[reg_count] = 0; // reset count
+    }
   }
 }
 

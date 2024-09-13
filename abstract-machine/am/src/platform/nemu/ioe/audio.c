@@ -9,6 +9,8 @@
 #define AUDIO_INIT_ADDR (AUDIO_ADDR + 0x10)
 #define AUDIO_COUNT_ADDR (AUDIO_ADDR + 0x14)
 
+static int sbuf_index = 0; // 以循环存储的方式索引nemu的sbuf
+
 void __am_audio_init() {
 }
 
@@ -22,13 +24,16 @@ void __am_audio_ctrl(AM_AUDIO_CTRL_T *ctrl) {
   outl(AUDIO_CHANNELS_ADDR, ctrl->channels);
   outl(AUDIO_SAMPLES_ADDR, ctrl->samples);
   outl(AUDIO_INIT_ADDR, 1);
+  if (ctrl->freq == 0 && ctrl->channels == 0 && ctrl->samples == 0) {
+    // SDL_CloseAudio
+    sbuf_index = 0; // reset index
+  }
 }
 
 void __am_audio_status(AM_AUDIO_STATUS_T *stat) {
   stat->count = inl(AUDIO_COUNT_ADDR);
 }
 
-static int sbuf_index = 0; // 以循环存储的方式用sbuf
 void __am_audio_play(AM_AUDIO_PLAY_T *ctl) {
   uint8_t *buf_ptr = ctl->buf.start;
   uint32_t sbuf_size = inl(AUDIO_SBUF_SIZE_ADDR);

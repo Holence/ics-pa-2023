@@ -1,6 +1,8 @@
 #include <am.h>
 #include <klib-macros.h>
 #include <NDL.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef void (*handler_t)(void *buf);
 

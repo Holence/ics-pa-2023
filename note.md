@@ -884,7 +884,35 @@ heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中�
 
 nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`的小星星移植过来做个测试
 
+> [!TIP]
+> `NDL_CloseAudio()`没说是什么，这里我就自己发挥了，规定写入`__am_audio_ctrl`四个寄存器时（也就是nemu中`audio_io_handler`处），当freq、channels、sample三个数都是0时，表明硬件层面要`SDL_CloseAudio`，以便之后其他软件可以重新`SDL_OpenAudio`设置不同的参数
+>
+> 具体硬件要做的：
+> ```c
+> // /nemu/src/device/audio.c
+> SDL_CloseAudio();
+> sbuf_index = 0;            // reset index
+> audio_base[reg_count] = 0; // reset count
+> 
+> // /abstract-machine/am/src/platform/nemu/ioe/audio.c
+> sbuf_index = 0; // reset index
+> ```
+>
+> 如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐
+>
+> 所以bad-apple最后退出前，也需要`io_write(AM_AUDIO_CTRL, 0, 0, 0);`去手动触发一下
+
 接着去libam把audio的部分补上，现在就可以在nanos中运行有声音的bad-apple了！（为了让ramdisk.img不超过48MB，并且同时包含pal和bad-apple，，bad-apple的声音频率和画幅大小都需要弄小一些）
+
+---
+
+miniSDL的部分，需要模拟“callback函数传送数据到SDL内部buf，再传送到硬件播放”的行为。
+
+得搞清楚sample、freq是什么，[SDL :: View topic - SDL_OpenAudio() and callback frequency](https://forums.libsdl.org/viewtopic.php?p=28652)
+
+所以，按理来说，callback会送进来sample长度的数据，每秒更新`freq / sample`次，也就是每经过`sample / freq`秒就调用一次callback（`SDL_Audio_interval_ms = sample * 1000 / freq`毫秒）。
+
+不知道为什么❓这样在native运行只能听到断断续续的声音，播放特别特别慢。而去掉`* 1000`后，就相当于`SDL_Audio_interval_ms = 0`，native才可能正常播放，到nanos+nemu里也还行。
 
 #### PAL (带音乐和音效)
 

@@ -18,6 +18,7 @@ int SDL_PushEvent(SDL_Event *ev) {
 
 // Polls for currently pending events, and returns 1 if there are any pending events, or 0 if there are none available.
 int SDL_PollEvent(SDL_Event *ev) {
+  CallbackHelper();
   static char event_str[64];
   static char key_name[20];
   static char key_down;

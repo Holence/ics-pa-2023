@@ -108,6 +108,11 @@ int main(int argc, char *argv[]) {
   stream_save = malloc(SAMPLES * info.channels * sizeof(*stream_save));
   assert(stream_save);
   printf("Playing %s(freq = %d, channels = %d)...\n", MUSIC_PATH, info.sample_rate, info.channels);
+  printf("[Space] to pause\n");
+  printf("[Return] to resume\n");
+  printf("[+] to raise volume\n");
+  printf("[-] to reduce volume\n");
+  printf("[ESC] to quit\n");
   SDL_PauseAudio(0);
 
   while (!is_end) {
@@ -117,6 +122,16 @@ int main(int argc, char *argv[]) {
         switch (ev.key.keysym.sym) {
           case SDLK_MINUS:  if (volume >= 8) volume -= 8; break;
           case SDLK_EQUALS: if (volume <= MAX_VOLUME - 8) volume += 8; break;
+          case SDLK_SPACE: SDL_PauseAudio(1); break; // space to pause
+          case SDLK_RETURN: SDL_PauseAudio(0); break; // return to resume
+          case SDLK_ESCAPE:
+            SDL_CloseAudio();
+            stb_vorbis_close(v);
+            SDL_Quit();
+            free(stream_save);
+            free(buf);
+
+            return 0;
         }
       }
     }
