@@ -912,7 +912,9 @@ miniSDL的部分，需要模拟“callback函数传送数据到SDL内部buf，�
 
 所以，按理来说，callback会送进来sample长度的数据，每秒更新`freq / sample`次，也就是每经过`sample / freq`秒就调用一次callback（`SDL_Audio_interval_ms = sample * 1000 / freq`毫秒）。
 
-不知道为什么❓这样在native运行只能听到断断续续的声音，播放特别特别慢。而去掉`* 1000`后，就相当于`SDL_Audio_interval_ms = 0`，native才可能正常播放，到nanos+nemu里也还行。
+不知道为什么❓这样在native运行只能听到断断续续的声音，播放特别特别慢。而把乘1000改成乘100后，才能正常播放，到nanos+nemu里也还行（1000毫秒是1秒啊，没错啊？？）
+
+到这里已经可以用naitve跑pal播放音乐了！！
 
 #### PAL (带音乐和音效)
 
