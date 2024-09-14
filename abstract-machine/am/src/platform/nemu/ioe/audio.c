@@ -35,23 +35,22 @@ void __am_audio_status(AM_AUDIO_STATUS_T *stat) {
 }
 
 void __am_audio_play(AM_AUDIO_PLAY_T *ctl) {
-  uint8_t *buf_ptr = ctl->buf.start;
   uint32_t sbuf_size = inl(AUDIO_SBUF_SIZE_ADDR);
   int transfer_count = ctl->buf.end - ctl->buf.start; // 需要搬运到SBUF中的长度
+  // 等有足够的空位了再复制进去
+  while (sbuf_size - inl(AUDIO_COUNT_ADDR) < transfer_count)
+    ;
 
-  for (int i = 0; i < transfer_count; i++) {
-
-    while (inl(AUDIO_COUNT_ADDR) == sbuf_size) {
-      // 搬运的过程中，如果SBUF满了，则等待播放
-      // 播放完一部分后会触发add_more_data，把SBUF输出一部分
-    }
-
-    outb(AUDIO_SBUF_ADDR + sbuf_index, buf_ptr[i]);
-    sbuf_index = (sbuf_index + 1) % sbuf_size;
-
-    // 每复制一个byte就改一次reg_count，也行吧，但没必要
-    // outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + 1);
+  if (sbuf_index + transfer_count > sbuf_size) {
+    int right_part = sbuf_size - sbuf_index;
+    int left_part = transfer_count - right_part;
+    memcpy((void *)AUDIO_SBUF_ADDR + sbuf_index, ctl->buf.start, right_part);
+    memcpy((void *)AUDIO_SBUF_ADDR, ctl->buf.start + right_part, left_part);
+    sbuf_index = left_part;
+  } else {
+    memcpy((void *)AUDIO_SBUF_ADDR + sbuf_index, ctl->buf.start, transfer_count);
+    sbuf_index += transfer_count;
   }
-  // 复制完后再告知reg_count，也不迟
+  // 复制完后再告知reg_count
   outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + transfer_count);
 }

@@ -10,7 +10,9 @@ int main() {
   int nplay = 0;
   void *start = &audio_payload;
   while (nplay < audio_len) {
-    int len = (audio_len - nplay > 4096 ? 4096 : audio_len - nplay);
+    int len = (audio_len - nplay > 1024 ? 1024 : audio_len - nplay);
+    while (NDL_QueryAudio() < len) {
+    }
     NDL_PlayAudio(start, len);
     start += len;
     nplay += len;

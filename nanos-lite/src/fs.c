@@ -65,6 +65,10 @@ inline char *get_file_name(int fd) {
   return file_table[fd].name;
 }
 
+inline size_t get_disk_offset(int fd) {
+  return file_table[fd].disk_offset;
+}
+
 int fs_open(const char *pathname, int flags, int mode) {
   // 为了简化实现, 我们允许所有用户程序都可以对所有已存在的文件进行读写
   // 所以可以忽略flags和mode了

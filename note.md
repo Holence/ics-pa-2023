@@ -901,6 +901,8 @@ nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`�
 > 如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐
 >
 > 所以bad-apple最后退出前，也需要`io_write(AM_AUDIO_CTRL, 0, 0, 0);`去手动触发一下
+>
+> 特别注意！`io_write(AM_AUDIO_CTRL, 0, 0, 0);`对am中的native环境不友好，执行这句后，再第二次OpenAudio`io_write(AM_AUDIO_CTRL, freq, channel, sample);`时，就再也没有声音了。所以一旦接受了我这种设定，nanos中执行`make ARCH=native`将不能多次设定`AM_AUDIO_CTRL`
 
 接着去libam把audio的部分补上，现在就可以在nanos中运行有声音的bad-apple了！（为了让ramdisk.img不超过48MB，并且同时包含pal和bad-apple，，bad-apple的声音频率和画幅大小都需要弄小一些）
 
@@ -924,6 +926,8 @@ miniSDL的部分，需要模拟“callback函数传送数据到SDL内部buf，�
 
 其实就是要navy程序运行`main()`之前运行`__libc_init_array()`，观察到`/navy-apps/libs/libos/Makefile`是在非native的环境时用`/navy-apps/libs/libos/src/crt0/start.S`进行引导，所以就只需要在`/navy-apps/libs/libos/src/crt0/crt0.c`调用`main()`之前调用`__libc_init_array()`就行了。
 
+在nanos+nemu上跑太慢了，应该还是刷新画面耗时太多
+
 #### Flappy Bird (带音效)
 
 不好玩，不做了
@@ -944,7 +948,7 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
 #### 添加开机音乐
 
-TODO
+因为每次结束程序后都会返回menu，所以我不想把开机音乐放到menu中，就放在nanos中了，直接调用am的接口播放音乐
 
 # 二周目问题
 

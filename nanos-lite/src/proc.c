@@ -3,6 +3,7 @@
 #define MAX_NR_PROC 4
 
 void naive_uload(PCB *pcb, const char *filename);
+void play_boot_music();
 
 static PCB pcb[MAX_NR_PROC] __attribute__((used)) = {};
 static PCB pcb_boot = {};
@@ -23,6 +24,7 @@ void hello_fun(void *arg) {
 
 void init_proc() {
   switch_boot_pcb();
+  // play_boot_music();
 
   Log("Initializing processes...");
 
