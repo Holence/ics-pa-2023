@@ -33,7 +33,7 @@ int SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained) {
   SDL_Audio_callback = desired->callback;
 
   SDL_Audio_interval_ms = SDL_Audio_sample * 100 / desired->freq; // * 1000 ❓❓❓
-  SDL_Audio_tick = SDL_GetTicks();
+  SDL_Audio_tick = NDL_GetTicks();
 
   return 0;
 }
@@ -49,7 +49,7 @@ void SDL_CloseAudio() {
 // 在miniSDL中的一些会被频繁调用的API中插入CallbackHelper()
 void CallbackHelper() {
   if (SDL_Audio_callback != NULL && !SDL_Audio_pause) {
-    uint32_t now = SDL_GetTicks();
+    uint32_t now = NDL_GetTicks();
     if (now - SDL_Audio_tick > SDL_Audio_interval_ms) {
       SDL_Audio_tick = now;
       if (NDL_QueryAudio() > SDL_Audio_sample) {

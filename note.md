@@ -595,7 +595,9 @@ nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lit
 
 ## 3.3
 
-navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。PA3后面也是这样吗❓
+navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。
+
+PA4后面也是这样吗❓
 
 ### 实现loader
 
@@ -934,11 +936,13 @@ miniSDL的部分，需要模拟“callback函数传送数据到SDL内部buf，�
 
 ### 基础设施(3)
 
-TODO
-
 #### 自由开关DiffTest模式
 
+TODO
+
 #### 快照
+
+TODO
 
 ### 展示你的批处理系统
 
@@ -949,6 +953,18 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 #### 添加开机音乐
 
 因为每次结束程序后都会返回menu，所以我不想把开机音乐放到menu中，就放在nanos中了，直接调用am的接口播放音乐
+
+## 必答题
+
+- 理解上下文结构体的前世今生、理解穿越时空的旅程：从yield test调用yield()开始, 到从yield()返回的期间, 这一趟旅程具体经历了什么? 软(AM, yield test)硬(NEMU)件是如何相互协助来完成这趟旅程的?
+  
+  见[PA3.2](#3.2)
+- hello程序是什么, 它从而何来, 要到哪里去：我们知道navy-apps/tests/hello/hello.c只是一个C源文件, 它会被编译链接成一个ELF文件. 那么, hello程序一开始在哪里? 它是怎么出现内存中的? 为什么会出现在目前的内存位置? 它的第一条指令在哪里? 究竟是怎么执行到它的第一条指令的? hello程序在不断地打印字符串, 每一个字符又是经历了什么才会最终出现在终端上?
+  
+  见[PA3.3](#3.3)
+- 仙剑奇侠传究竟如何运行：运行仙剑奇侠传时会播放启动动画, 动画里仙鹤在群山中飞过. 这一动画是通过navy-apps/apps/pal/repo/src/main.c中的PAL_SplashScreen()函数播放的. 阅读这一函数, 可以得知仙鹤的像素信息存放在数据文件mgo.mkf中. 请回答以下问题: 库函数, libos, Nanos-lite, AM, NEMU是如何相互协助, 来帮助仙剑奇侠传的代码从mgo.mkf文件中读出仙鹤的像素信息, 并且更新到屏幕上? 换一种PA的经典问法: 这个过程究竟经历了些什么? (Hint: 合理使用各种trace工具, 可以帮助你更容易地理解仙剑奇侠传的行为)
+
+  道理大同，懒得trace、懒得回答了
 
 # 二周目问题
 

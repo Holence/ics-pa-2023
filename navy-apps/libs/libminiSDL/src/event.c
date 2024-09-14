@@ -25,6 +25,7 @@ int SDL_PollEvent(SDL_Event *ev) {
   if (NDL_PollEvent(event_str, sizeof(event_str)) > 0) {
     sscanf(event_str, "k%c %s\n", &key_down, key_name);
     if (key_down == 'd') {
+      // printf("KeyDown %s\n", key_name);
       ev->type = SDL_KEYDOWN;
       for (int i = 0; i < LENGTH(keyname); i++) {
         if (key_name[0] == keyname[i][0] && strcmp(key_name, keyname[i]) == 0) {

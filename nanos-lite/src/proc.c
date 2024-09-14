@@ -24,7 +24,7 @@ void hello_fun(void *arg) {
 
 void init_proc() {
   switch_boot_pcb();
-  // play_boot_music();
+  play_boot_music();
 
   Log("Initializing processes...");
 
