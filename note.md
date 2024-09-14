@@ -914,11 +914,19 @@ miniSDL的部分，需要模拟“callback函数传送数据到SDL内部buf，�
 
 不知道为什么❓这样在native运行只能听到断断续续的声音，播放特别特别慢。而把乘1000改成乘100后，才能正常播放，到nanos+nemu里也还行（1000毫秒是1秒啊，没错啊？？）
 
+选择会被频繁调用的miniSDL API塞`CallbackHelper()`，可以选`SDL_BlitSurface`、`SDL_Delay`、`SDL_PollEvent`这三个
+
 到这里已经可以用naitve跑pal播放音乐了！！
 
 #### PAL (带音乐和音效)
 
+感谢chatgpt老师的点拨。
+
+其实就是要navy程序运行`main()`之前运行`__libc_init_array()`，观察到`/navy-apps/libs/libos/Makefile`是在非native的环境时用`/navy-apps/libs/libos/src/crt0/start.S`进行引导，所以就只需要在`/navy-apps/libs/libos/src/crt0/crt0.c`调用`main()`之前调用`__libc_init_array()`就行了。
+
 #### Flappy Bird (带音效)
+
+不好玩，不做了
 
 ### 基础设施(3)
 

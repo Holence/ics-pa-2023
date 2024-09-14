@@ -7,6 +7,7 @@
 // 把src的srcrect区域中的pixels 复制到 dst的dstrect区域中pixels
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
   // printf("SDL_BlitSurface(%x, %x, %x, %x)\n", src, srcrect, dst, dstrect);
+  CallbackHelper();
   assert(dst && src);
   assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
@@ -138,7 +139,7 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
   uint32_t *pixel_ptr = pixels;
   int seek_amount = s->w - rect_w;
   if (s->format->BitsPerPixel == 8) {
-    uint8_t *spixel_ptr = s->pixels + dst_y * s->w + dst_x;
+    uint8_t *spixel_ptr = ((uint8_t *)s->pixels) + dst_y * s->w + dst_x;
     SDL_Color *colors_ptr = s->format->palette->colors;
     for (int i = 0; i < rect_h; ++i) {
       for (int j = 0; j < rect_w; ++j) {
@@ -149,7 +150,7 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
       spixel_ptr += seek_amount;
     }
   } else {
-    uint32_t *spixel_ptr = s->pixels + dst_y * s->w + dst_x;
+    uint32_t *spixel_ptr = ((uint32_t *)s->pixels) + dst_y * s->w + dst_x;
     for (int i = 0; i < rect_h; ++i) {
       for (int j = 0; j < rect_w; ++j) {
         *(pixel_ptr++) = *(spixel_ptr++);

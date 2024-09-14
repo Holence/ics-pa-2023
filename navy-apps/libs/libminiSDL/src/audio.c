@@ -13,7 +13,7 @@ static uint32_t SDL_Audio_tick;
 // 打开音频功能, 并根据`*desired`中的成员来初始化声卡设备
 // 初始化成功后, 音频播放处于暂停状态
 int SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained) {
-  printf("SDL_OpenAudio %d %d %d %d - %x\n", desired->freq, desired->channels, desired->samples, desired->size, obtained);
+  // printf("SDL_OpenAudio %d %d %d %d - %x\n", desired->freq, desired->channels, desired->samples, desired->size, obtained);
   NDL_OpenAudio(desired->freq, desired->channels, desired->samples);
 
   // SDL_OpenAudio calculates the size fields for both the desired and obtained specifications
