@@ -67,35 +67,23 @@
 
 ## 关于AM
 
-AM的五个模块：
+参考阅读: [一生一芯 - Abstract Machine裸机运行时环境](https://www.bilibili.com/video/BV1Vu4y1s73Y/)
 
-- TRM所需的最简单的运行时环境 —— PA2.3
-  - init，`start.S: _start()`，具体做了啥❓
-    
-    halt，将客户程序`main()`的返回值，约定使用`a0`寄存器传返回值，通过`ebreak`指令让nemu终止，并将传入的返回值作为`nemu_state.halt_ret`，作为判断`Good/Bad Trap`的依据，最后退出nemu。
-    
-    > gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`和`ebreak`，这些都是运行环境（操作系统）附加的东西
-    >
-    > ```bash
-    > cd /am-kernels/tests/cpu-tests
-    > 
-    > # 仅输出汇编
-    > gcc -S tests/dummy.c -o dummy.s
-    > # 或输出机器码
-    > gcc -c tests/dummy.c -o dummy.o
-    > objdump -d dummy.o
-    > # 发现里面没有_start()和ebreak
-    > # dummy.o是不能被操作系统运行的
-    > 
-    > # 编译（并链接运行环境），生成可执行文件
-    > gcc tests/dummy.c -o dummy
-    > objdump -d dummy
-    > # 发现在_start()函数中有ebreak，这并不是main()函数
-    > ```
-  - 一些通用（ISA架构无关）的库函数
-- IOE (I/O Extension) 访问外设的接口 —— PA2.5
-- CTE (Context Extension) 上下文扩展
-  - `ecall`，系统调用，约定使用`a7`寄存器传参
+AM最初是为了把ISA和OS解耦，让学生自制的各种ISA的CPU可以跑各种上层系统，AM中把各种不同型号的硬件接口进行抽象，而上层系统都使用AM提供的接口。
+
+nemu相当于是一个可以一次性执行完一段程序最后返回一个return值的cpu，仅仅是一个图灵机，运行完就结束了。
+
+nemu是纯“硬件”的“裸机”，am-kernels里的程序、以及nanos都是上层的客户程序，abstract-machine是两者之间的桥梁，是“裸机”的运行时环境。
+
+AM的五个模块，从前往后对应着计算机历史发展的进程：
+
+- TRM (Turing Machine) 最简单的运行时环境
+  - init / halt
+  - putch: 最基础的打印字符
+  - heap: 规定堆的区间
+  - klib: 一些通用（ISA架构无关）的库函数 stdio, stdlib, string
+- IOE (I/O Extension) 访问外设的接口: 对接到不同ISA下CPU访问外设的方法
+- CTE (Context Extension) 上下文扩展: trap（系统调用，中断，异常）
 - VME (Virtual Memory Extension) 虚存扩展
 - MPE (Multi-Processor Extension) 多处理器扩展
 
@@ -294,23 +282,37 @@ image: $(IMAGE).elf
 
 实现几个与ISA无关的通用库函数，理解abstract machine作为nemu(cpu)与OS之间的中间层的奥义。
 
-```
-// trm.c
+客户程序依赖于AM，见[AM的五个模块](#关于AM)
+
+nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。也就是说客户程序通过abstract-machine的加持，就可以跑在任意一种CPU上（物理世界的CPU也行）。
+
+```c
+// init: `start.S: _start()`，设置栈的起始位置`sp = _stack_pointer`（`/abstract-machine/scripts/linker.ld`中设定的地址），跳转到trm.c中的`_trm_init`
 void _trm_init() {
   int ret = main(mainargs);
   halt(ret);
 }
+// halt: 将客户程序`main()`的返回值，约定使用`a0`寄存器传返回值，通过`ebreak`指令让nemu终止，并将传入的返回值作为`nemu_state.halt_ret`，作为判断`Good/Bad Trap`的依据，最后退出nemu。
 ```
 
-nemu相当于是一个可以一次性执行完一段程序最后返回一个return值的cpu，仅仅是一个图灵机，运行完就结束了。
-
-nemu是纯“硬件”的裸机，am-kernels里的程序是普通用户写出来的客户程序，abstract-machine是运行环境。
-
-客户程序依赖于AM，见[AM的五个模块](#关于AM)
-
-所以就需要一个抽象层abstract-machine
-
-nemu的运行是直接读入一整个IMAGE，是am-kernels的客户程序和abstract-machine全部编译、链接在一起的结果，在nemu看来就是一堆指令，相当于开机后就只跑这一个运行环境中的一个程序。也就是说客户程序通过abstract-machine的加持，就可以跑在任意一种CPU上（物理世界的CPU也行）。
+> gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`和`ebreak`，这些都是运行环境（操作系统）附加的东西
+>
+> ```bash
+> cd /am-kernels/tests/cpu-tests
+> 
+> # 仅输出汇编
+> gcc -S tests/dummy.c -o dummy.s
+> # 或输出机器码
+> gcc -c tests/dummy.c -o dummy.o
+> objdump -d dummy.o
+> # 发现里面没有_start和hlt (hlt应该就是和ebreak同样的存在吧❓)
+> # dummy.o是不能被操作系统运行的
+> 
+> # 编译（并链接运行环境），生成可执行文件
+> gcc tests/dummy.c -o dummy
+> objdump -d dummy
+> # 发现在_start函数中有hlt，这并不是main()函数
+> ```
 
 ## 2.4
 

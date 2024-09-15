@@ -1,4 +1,4 @@
-.section entry, "ax"
+.section entry, "ax" // 当前section的名字叫entry，ax表示属性是allocatable, executable
 .globl _start
 .type _start, @function
 
