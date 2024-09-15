@@ -60,6 +60,7 @@ __am_asm_trap:
 
   mv a0, sp
   jal __am_irq_handle
+  mv sp, a0 // PA4开始涉及进程切换，这里要更新sp指向__am_irq_handle返回的新Context
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)

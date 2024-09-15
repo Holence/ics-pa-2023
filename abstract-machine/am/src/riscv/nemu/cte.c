@@ -32,6 +32,7 @@ Context *__am_irq_handle(Context *c) {
       break;
     }
 
+    // PA4后，user_handler可能会切换进程，返回另一个进程的context
     c = user_handler(ev, c);
     assert(c != NULL);
   }
@@ -57,8 +58,12 @@ bool cte_init(Context *(*handler)(Event, Context *)) {
   return true;
 }
 
+// 初始化进程，创建空白context，只把mepc（trap出去mret跳转到的地址）设置为进程的entry地址
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  return NULL;
+  Context c = {.mepc = (uintptr_t)entry, .mstatus = 0x1800};
+  Context *p = (Context *)(kstack.end - sizeof(Context));
+  memcpy(p, &c, sizeof(Context));
+  return p;
 }
 
 void yield() {
