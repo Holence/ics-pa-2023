@@ -597,7 +597,7 @@ nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lit
 
 ## 3.3
 
-navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。
+navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数的函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。
 
 PA4后面也是这样吗❓
 
