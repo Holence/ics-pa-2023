@@ -5,6 +5,8 @@
 #include <proc.h>
 
 void naive_uload(PCB *pcb, const char *filename);
+void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
+void switch_boot_pcb();
 
 int sys_brk(void *addr) {
   // 目前堆区大小的调整总是成功
@@ -19,7 +21,11 @@ int sys_gettimeofday(void *tv, void *tz) {
 }
 
 int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
-  naive_uload(NULL, fname); // if succeed, 穿越时空
+  // naive_uload(NULL, fname); // if succeed, 穿越时空
+  context_uload(current, fname, argv, envp);
+  switch_boot_pcb();
+  yield();
+  panic("execve should not be here");
   // if failed, return -1
   return -1;
 }

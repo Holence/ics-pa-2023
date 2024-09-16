@@ -950,9 +950,18 @@ TODO
 
 ### 展示你的批处理系统
 
+> [!NOTE]
+> 每次都调用`naive_uload()`然后用调用的方式跳入`entry()`，函数栈是一直增长没有释放的。可以在nemu的ebreak指令中监视这一点，多次打开navy软件再退出，看到sp一直在减小
+>
+> ```c
+> if (cpu.gpr[17] == 0 || cpu.gpr[17] == 13) { // if a7 == SYS_exit || a7 == SYS_execve
+>   printf("%x\n", cpu.gpr[2]); // print sp
+> }
+> ```
+
 menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
-依旧没法传参数给navy程序的main，所以现在还是不能让fceux选择rom。到[PA4.1](#Nanos-lite的上下文切换)中就能实现了。
+依旧没法传参数给navy程序的main，所以现在还是不能让fceux选择rom。到[PA4.1](#用户进程的上下文切换)中就能实现了。
 
 #### 添加开机音乐
 
@@ -982,14 +991,63 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
 在最一开始时进程并不存在，也就没有“挂起时所保存的Context”，所以就得手动创建一个空白Context，以便兼容用trap的方式调度让这个全新的进程“继续”运行，这就是`kcontext()`函数要做的。
 
-### RT-Thread
+```
+PCB结构
+|               |
++---------------+ <---- kstack.end
+|               |
+|    context    |
+|               |
++---------------+ <--+
+|               |    |
+|               |    |
+|               |    |
+|               |    |
++---------------+    |
+|       cp      | ---+
++---------------+ <---- kstack.start
+|               |
+```
+
+### OS中的上下文切换
+
+#### RT-Thread
 
 TODO
 
-### Nanos-lite的上下文切换
+#### Nanos-Lite的上下文切换
 
-- 内核栈: 对于用户进程来说，除了存Context，还有什么用❓
-- 用户栈: 运行时的函数栈
+细节非常绕，最好能有个动画演示，可能我现在理清了，之后也会忘掉
+
+两个内核线程的交错：
+```c
+context_kload(&pcb[0], hello_fun, (void *)0);
+context_kload(&pcb[1], hello_fun, (void *)1);
+```
+- 主线程栈中，分别用`kcontext()`构建初始化用的Context（放在各自PCB的stack的尾部），各自的pcb->cp指向Context，各自的pcb->cp->mepc指向内核中的`hello_fun`函数
+- 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时**魔法**发生了：**“主线程栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`”，主线程栈中的__am_asm_trap结束了，而`pc`和`sp`都就位**，便新建出了线程0
+- 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈中，再`__am_irq_handle() -> schedule()`，保存`pcb->cp`指向Context（用于恢复sp），修改全局变量`current = &pcb[1]`，同理又用**魔法**新建出线程1
+- 线程1在自己的栈中运行，`yield`时同样保存当前的Context在自己的栈中，`schedule()`后又用**魔法**：**“线程1栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为线程1保存的`mepc`”，线程1栈中的__am_asm_trap结束了，而`pc`和`sp`都就位**，返回到线程1
+- 循环往复
+
+当CPU出去忙其他线程时，主线程栈、线程0栈、线程1栈，都维持着这样的函数栈：CPU回来的时候，借用退出者的__am_asm_trap的后半部分恢复sp、Context、pc
+
+```
+线程函数
+yield() （此地址存在Context.mepc中，用于恢复pc）
+保存了挂起时的Context （此地址存在pcb->cp中，用于恢复sp）
+```
+
+### 用户进程的上下文切换
+
+用户进程与内核线程间的切换原理没啥变化，只不过用户进程运行时的栈不是`pcb[].stack`那么小一点了
+
+现在要求navy程序拥有属于自己的函数调用栈！
+
+- 内核栈: 存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈还有什么用❓
+- 用户栈: 运行时的函数栈，当运行一段时间后，要被挂起时，就在__am_asm_trap中将Context存在用户栈中。
+
+让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
 
 > [!NOTE]
 > 一山不能藏二虎?
@@ -1000,6 +1058,14 @@ TODO
 - 初始的sp值在a0中
 - 传入的参数在初始stack中摆放的样子：`nanos:context_uload`中让初始栈从下往上存argc、argv、envp、string area，让初始sp指向这些参数的最底部，也就是argc的地址。这样`navy:_start`后就能方便地顺序读取，之后用户栈往下生长即可，不必理会最上面的这些数据。
 
+---
+
+之后要实现execve时，规定要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB区域。
+
+> [!NOTE]
+> 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context）
+>
+> 注意：`context_uload`中需要先设置参数再load装入代码，因为argv在用户程序的堆中（_bss上方的区域），会被loader覆盖
 
 # 二周目问题
 

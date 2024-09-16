@@ -2,12 +2,14 @@
 
 static void *pf = NULL;
 
-void* new_page(size_t nr_page) {
-  return NULL;
+void *new_page(size_t nr_page) {
+  pf += nr_page * PGSIZE;
+  assert((uintptr_t)pf < 0x83000000); // 禁止nanos的堆区生长到navy被load到内存中的地方
+  return pf;
 }
 
 #ifdef HAS_VME
-static void* pg_alloc(int n) {
+static void *pg_alloc(int n) {
   return NULL;
 }
 #endif
