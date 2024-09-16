@@ -952,7 +952,7 @@ TODO
 
 menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
-依旧没法传参数给navy程序的main，所以现在还是不能让fceux选择rom，后面怎么弄❓
+依旧没法传参数给navy程序的main，所以现在还是不能让fceux选择rom。到[PA4.1](#Nanos-lite的上下文切换)中就能实现了。
 
 #### 添加开机音乐
 
@@ -986,7 +986,7 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
 TODO
 
-### Nanos-lite
+### Nanos-lite的上下文切换
 
 - 内核栈: 对于用户进程来说，除了存Context，还有什么用❓
 - 用户栈: 运行时的函数栈
@@ -995,6 +995,11 @@ TODO
 > 一山不能藏二虎?
 >
 > 因为目前loader只是根据elf给出的虚拟地址装载入内存，两个navy程序依次装载，后者就覆盖了前者。而且目前的栈空间都是从heap.end开始往下，两个navy程序的栈都混着了。
+
+操作系统与编译器的约定（`nanos:context_uload`与`navy:_start`的约定）
+- 初始的sp值在a0中
+- 传入的参数在初始stack中摆放的样子：`nanos:context_uload`中让初始栈从下往上存argc、argv、envp、string area，让初始sp指向这些参数的最底部，也就是argc的地址。这样`navy:_start`后就能方便地顺序读取，之后用户栈往下生长即可，不必理会最上面的这些数据。
+
 
 # 二周目问题
 
