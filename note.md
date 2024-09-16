@@ -114,7 +114,9 @@ lut[128]:       0x81C11230
 _pmem_start:    0x80000000
 ```
 
-还有，也没见`_stack_top`在哪里被使用啊？确实应该添加一个检查是否超过栈顶的代码，不然随手在函数内设个大数组，就把全局变量给抹没了：
+还有，也没见`_stack_top`在哪里被使用啊？确实应该添加一个检查是否超过栈顶的代码，不然随手在函数内设个大数组，就把全局变量给抹没了。但这怎么实现，nemu并不知道_stack_top的存在（除非解析elf文件），而这种检测也确实不应该在硬件层面实现❓
+
+> PA3.2: 另一种你可能会碰到的UB是栈溢出, 对, 就是stackoverflow的那个. 检测栈溢出需要一个更强大的运行时环境, AM肯定是无能为力了, 于是就UB吧.
 
 > bad-apple的案例
 >
@@ -608,7 +610,7 @@ PA4后面也是这样吗❓
 > [!TIP]
 > 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从`_heap_start`往上的，岂不是会被覆盖？
 >
-> navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上❓）
+> navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上）
 >
 > nanos的堆区仍旧是am的klib里的`malloc()`函数，`[_heap_start, 0x83000000]`都是安全的部分，nanos中没什么需要malloc的，所以不太可能会覆盖到装入的navy程序。（可以在klib的`malloc`中加个`assert(addr < 0x83000000)`）
 
@@ -986,7 +988,13 @@ TODO
 
 ### Nanos-lite
 
+- 内核栈: 对于用户进程来说，除了存Context，还有什么用❓
+- 用户栈: 运行时的函数栈
 
+> [!NOTE]
+> 一山不能藏二虎?
+>
+> 因为目前loader只是根据elf给出的虚拟地址装载入内存，两个navy程序依次装载，后者就覆盖了前者。而且目前的栈空间都是从heap.end开始往下，两个navy程序的栈都混着了。
 
 # 二周目问题
 
@@ -998,6 +1006,8 @@ TODO
 与此相关的问题还有: NEMU中为什么要有nemu_trap? 为什么要有monitor?
 - 1.6 [How debuggers work](https://eli.thegreenplace.net/2011/01/23/how-debuggers-work-part-1/)
 - 2.3 为什么要有AM？操作系统也有自己的运行时环境. AM和操作系统提供的运行时环境有什么不同呢? 为什么会有这些不同?
+  
+  见[关于AM](#关于AM)
 - 2.5 读am-kernels中的LiteNES
 - 3.1 什么是操作系统?
 - 3.2 这些程序状态(x86的eflags, cs, eip; mips32的epc, status, cause; riscv32的mepc, mstatus, mcause)必须由硬件来保存吗? 能否通过软件来保存? 为什么?

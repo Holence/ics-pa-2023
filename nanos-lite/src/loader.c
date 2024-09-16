@@ -26,7 +26,7 @@ size_t fs_lseek(int fd, size_t offset, int whence);
 size_t ramdisk_read(void *buf, size_t offset, size_t len);
 
 // 将ramdisk中的elf文件装入内存，返回entry point address
-static uintptr_t loader(PCB *pcb, const char *filename) {
+uintptr_t loader(PCB *pcb, const char *filename) {
   int fd = fs_open(filename, 0, 0);
 
   if (fd == -1) {

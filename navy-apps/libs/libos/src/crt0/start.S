@@ -2,7 +2,7 @@
 _start:
 
 #if defined(__ISA_AM_NATIVE__)
-
+  movq %rax, %rsp // PA4 Nanos-lite和Navy作了一项约定: Nanos-lite把进程初始时的栈顶位置设置到GPRx中, 然后由Navy里面的_start来把栈顶位置真正设置到栈指针寄存器中
   movq $0, %rbp
   // (rsp + 8) should be multiple of 16 when
   // control is transfered to the function entry point.
@@ -29,6 +29,7 @@ _start:
   jal call_main
 
 #elif defined(__riscv)
+  mv sp, a0 // PA4 Nanos-lite和Navy作了一项约定: Nanos-lite把进程初始时的栈顶位置设置到GPRx中, 然后由Navy里面的_start来把栈顶位置真正设置到栈指针寄存器中
   mv s0, zero
   jal call_main
 

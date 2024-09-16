@@ -2,6 +2,7 @@
 
 #define MAX_NR_PROC 4
 
+uintptr_t loader(PCB *pcb, const char *filename);
 void naive_uload(PCB *pcb, const char *filename);
 void play_boot_music();
 
@@ -40,9 +41,19 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
   return;
 }
 
+void context_uload(PCB *pcb, char *filename) {
+  AddrSpace addr;
+  uintptr_t entry = loader(pcb, filename);
+  pcb->cp = ucontext(&addr, (Area){pcb->stack, pcb + 1}, (void *)entry);
+  // Nanos-lite和Navy作了一项约定: Nanos-lite把进程初始时的栈顶位置设置到GPRx中, 然后由Navy里面的_start来把栈顶位置真正设置到栈指针寄存器中
+  pcb->cp->GPRx = (uintptr_t)heap.end;
+  return;
+}
+
 void init_proc() {
   context_kload(&pcb[0], hello_fun, (void *)0);
-  context_kload(&pcb[1], hello_fun, (void *)1);
+  // context_kload(&pcb[1], hello_fun, (void *)1);
+  context_uload(&pcb[1], "/bin/pal");
   switch_boot_pcb();
 }
 

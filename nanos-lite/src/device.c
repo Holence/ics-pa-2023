@@ -15,6 +15,7 @@ static const char *keyname[256] __attribute__((used)) = {
 
 size_t serial_write(const void *buf, size_t offset, size_t len) {
   // 由于串口是一个字符设备, 对应的字节序列没有"位置"的概念, 因此serial_write()中的offset参数可以忽略
+  yield(); // PA4 设备访问缓慢，切换进程
   size_t ret = 0;
   char *ptr = (char *)buf;
   for (size_t i = 0; i < len; i++) {
@@ -28,6 +29,7 @@ size_t events_read(void *buf, size_t offset, size_t len) {
   // 读出一个键盘事件
   // - 按下按键事件, 如kd RETURN表示按下回车键
   // - 松开按键事件, 如ku A表示松开A键
+  yield(); // PA4 设备访问缓慢，切换进程
   AM_INPUT_KEYBRD_T ev = io_read(AM_INPUT_KEYBRD);
   if (ev.keycode == AM_KEY_NONE) {
     return 0;
@@ -50,6 +52,7 @@ size_t dispinfo_read(void *buf, size_t offset, size_t len) {
 // 向frame buffer中写入一行，buf为需要写入的一行数据，len为字节数，所以一行的宽度为len/4，写完之后刷新屏幕
 // offset = (vga_y * screen_w + vga_x) * 4
 size_t fb_write(void *buf, size_t offset, size_t len) {
+  yield(); // PA4 设备访问缓慢，切换进程
   offset = offset >> 2;
   int vga_x = offset % screen_w;
   int vga_y = offset / screen_w;
