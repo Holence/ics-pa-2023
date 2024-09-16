@@ -10,6 +10,9 @@ static PCB pcb[MAX_NR_PROC] __attribute__((used)) = {};
 static PCB pcb_boot = {};
 PCB *current = NULL;
 
+char *empty[] = {NULL};
+char *args_menu[] = {"/bin/menu", NULL};
+
 void switch_boot_pcb() {
   current = &pcb_boot;
 }
@@ -92,16 +95,9 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
 void init_proc() {
   context_kload(&pcb[0], hello_fun, (void *)1);
-  char *empty[] = {NULL};
 
-  // char *args[] = {"/bin/exec-test", NULL};
-  // context_uload(&pcb[0], "/bin/exec-test", args, empty);
+  context_uload(&pcb[1], args_menu[0], args_menu, empty);
 
-  // char *args_menu[] = {"/bin/menu", NULL};
-  // context_uload(&pcb[1], "/bin/menu", args_menu, empty);
-
-  char *args_pal[] = {"/bin/pal", "--skip", NULL};
-  context_uload(&pcb[1], "/bin/pal", args_pal, empty);
   switch_boot_pcb();
 }
 

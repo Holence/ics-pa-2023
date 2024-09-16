@@ -18,4 +18,7 @@ typedef union {
 
 extern PCB *current;
 
+extern char *empty[];
+extern char *args_menu[];
+
 #endif

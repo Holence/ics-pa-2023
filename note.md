@@ -1067,6 +1067,12 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 >
 > 注意：`context_uload`中需要先设置参数再load装入代码，因为argv在用户程序的堆中（_bss上方的区域），会被loader覆盖
 
+#### BusyBox
+
+TODO
+
+不懂啊❓wc不是在/usr/bin吗？不在ramdisk.img中的还怎么被sys_execve？？
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
