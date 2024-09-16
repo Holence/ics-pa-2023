@@ -972,13 +972,21 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
 ## 4.1
 
-### 线程/进程调度
+### yield-os
 
 开始实现多进程的切换，只要一开始两个进程内存空间相互独立，利用之前的`__am_asm_trap`，在`__am_irq_handle`中用`user_handler`返回另一个进程的Context，到`__am_asm_trap`中恢复Context时也就把CPU的状态刷到了另一个进程的状态
 
 为了让`user_handler`能够配合工作（选择接下来返回哪个进程的Context），就必须让`user_handler`了解所有进程的信息，这说的就是——操作系统需要维护所有进程的PCB，PCB中有指向“进程挂起时所保存的Context”的指针。
 
 在最一开始时进程并不存在，也就没有“挂起时所保存的Context”，所以就得手动创建一个空白Context，以便兼容用trap的方式调度让这个全新的进程“继续”运行，这就是`kcontext()`函数要做的。
+
+### RT-Thread
+
+TODO
+
+### Nanos-lite
+
+
 
 # 二周目问题
 

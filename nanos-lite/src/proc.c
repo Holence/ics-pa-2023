@@ -22,17 +22,32 @@ void hello_fun(void *arg) {
   }
 }
 
+// PA3
+// void init_proc() {
+//   switch_boot_pcb();
+//   play_boot_music();
+
+//   Log("Initializing processes...");
+
+//   // load program here
+//   naive_uload(NULL, "/bin/menu");
+//   // naive_uload(NULL, "/bin/nterm");
+// }
+
+// PA4
+void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
+  pcb->cp = kcontext((Area){pcb->stack, pcb + 1}, entry, arg);
+  return;
+}
+
 void init_proc() {
+  context_kload(&pcb[0], hello_fun, (void *)0);
+  context_kload(&pcb[1], hello_fun, (void *)1);
   switch_boot_pcb();
-  play_boot_music();
-
-  Log("Initializing processes...");
-
-  // load program here
-  naive_uload(NULL, "/bin/menu");
-  // naive_uload(NULL, "/bin/nterm");
 }
 
 Context *schedule(Context *prev) {
-  return NULL;
+  current->cp = prev;
+  current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
+  return current->cp;
 }
