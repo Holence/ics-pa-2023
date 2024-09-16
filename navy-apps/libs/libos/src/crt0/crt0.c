@@ -14,8 +14,6 @@ void call_main(uintptr_t *args) {
   // assert((uintptr_t)args > 0x83000000);
 
   // PA4 传入参数
-  uintptr_t *ptr = args - 1;
-
   int argc = args[0];
   printf("[call_main] argc: %d\n", argc);
 

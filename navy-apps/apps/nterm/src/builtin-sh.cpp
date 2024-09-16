@@ -42,30 +42,54 @@ char *trim(char *s) {
   return rtrim(ltrim(s));
 }
 
-static char *args[] = {NULL, NULL};
 static void sh_handle_cmd(const char *cmd) {
   char *cmd_ptr = const_cast<char *>(cmd);
   cmd_ptr = trim(cmd_ptr);
-  char *op = strtok(cmd_ptr, " ");
-  if (op == NULL) {
-    return;
-  } else {
-    if (strcmp(op, "echo") == 0) {
-      char *p = cmd_ptr + strlen(op) + 1;
-      while (*p == ' ') {
-        p++;
+
+  char **argv = NULL; // Argument array, dynamic
+  int argc = 0;       // Argument count
+
+  // Get the arguments (remaining tokens of the string)
+  char *arg = strtok(cmd_ptr, " ");
+  while (arg != NULL) {
+    // Reallocate memory to store the new argument
+    argv = (char **)realloc(argv, sizeof(char *) * (argc + 1));
+    if (argv == NULL) {
+      fprintf(stderr, "nterm sh_handle_cmd: Memory allocation error\n");
+    }
+
+    // Store the argument
+    argv[argc++] = arg;
+
+    // Get the next token
+    arg = strtok(NULL, " ");
+  }
+
+  // Terminate the argument array with NULL
+  argv = (char **)realloc(argv, sizeof(char *) * (argc + 1));
+  argv[argc] = NULL;
+
+  printf("Arguments:\n");
+  for (int i = 0; argv[i] != NULL; i++) {
+    printf("  argv[%d] = %s\n", i, argv[i]);
+  }
+
+  if (argc > 0) {
+    if (strcmp(argv[0], "echo") == 0) {
+      for (int i = 1; i < argc; i++) {
+        sh_printf("%s ", argv[i]);
       }
-      sh_printf("%s\n", p);
-    } else if (strcmp(op, "quit") == 0) {
+      sh_printf("\n");
+    } else if (strcmp(argv[0], "quit") == 0) {
       exit(0);
     } else {
-      args[0] = op;
-      int ret = execvp(op, args);
+      int ret = execvp(argv[0], argv);
       if (ret == -1) {
-        sh_printf("Cannot find excutable file: %s\n", op);
+        sh_printf("Cannot find excutable file: %s\n", argv[0]);
       }
     }
   }
+  free(argv);
 }
 
 void builtin_sh_run() {
