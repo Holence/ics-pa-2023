@@ -7,17 +7,17 @@ void __libc_init_array(void);
 int main(int argc, char *argv[], char *envp[]);
 extern char **environ;
 
-void call_main(uintptr_t *args) {
+void call_main(uintptr_t *sp) {
 
   // PA4 检查确实在使用用户栈而不是内核栈
-  printf("[call_main] Navy Stack: %p\n", args);
-  // assert((uintptr_t)args > 0x83000000);
+  printf("[call_main] Navy Stack: %p\n", sp);
+  // assert((uintptr_t)sp > 0x83000000);
 
   // PA4 传入参数
-  int argc = args[0];
+  int argc = sp[0];
   printf("[call_main] argc: %d\n", argc);
 
-  char **argv = (char **)args + 1;
+  char **argv = (char **)sp + 1;
   for (int i = 0; i < argc; i++) {
     printf("[call_main] argv[%d]: %s\n", i, argv[i]);
   }

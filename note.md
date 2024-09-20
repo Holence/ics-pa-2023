@@ -55,7 +55,7 @@
 
 # （需要补习的）前置知识
 
-- RISC-V：PA2是unprivileged，CS61C就够用了。PA3涉及privilege，需要补习。
+- RISC-V：PA2是unprivileged，CS61C就够用了。PA3、PA4涉及privileged，PA3要trap，PA4要分页，需要补习。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Arch/RISC-V/RISC-V.md)
 - Makefile：虽然PA1中可以不用理解Makefile，但PA2里就需要全部读懂Makefile了，所以最好一开始就掌握make的语法。笔记见[Notes](https://github.com/Holence/Notes/blob/main/Tools/Make/Make.md)
 - ELF：PA2.4和PA3.3中都要手写解析ELF，可以看看《System V generic ABI》第四五章，笔记见[Notes](https://github.com/Holence/Notes/blob/main/OS/ELF.md)
 
@@ -1024,6 +1024,7 @@ TODO
 context_kload(&pcb[0], hello_fun, (void *)0);
 context_kload(&pcb[1], hello_fun, (void *)1);
 ```
+
 - 主线程栈中，分别用`kcontext()`构建初始化用的Context（放在各自PCB的stack的尾部），各自的pcb->cp指向Context，各自的pcb->cp->mepc指向内核中的`hello_fun`函数
 - 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时**魔法**发生了：**“主线程栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`”，主线程栈中的__am_asm_trap结束了，而`pc`和`sp`都就位**，便新建出了线程0
 - 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈中，再`__am_irq_handle() -> schedule()`，保存`pcb->cp`指向Context（用于恢复sp），修改全局变量`current = &pcb[1]`，同理又用**魔法**新建出线程1
@@ -1072,6 +1073,44 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 TODO
 
 不懂啊❓wc不是在/usr/bin吗？不在ramdisk.img中的还怎么被sys_execve？？
+
+## 4.2
+
+[南大修正的Intel 80386手册](https://github.com/NJU-ProjectN/i386-manual)
+
+> [!NOTE]
+> i386不是一个32位的处理器吗, 为什么表项中的基地址信息只有20位, 而不是32位?
+>
+> 因为可以保证页表地址位于4K的整数倍处，所以只需要存前20位就行。
+
+> [!NOTE]
+> `pa = (pg_table[va >> 10] & ~0x3ff) | (va & 0x3ff);`
+>
+> 页表大小为1KB，页内地址10位，`pg_table[va >> 10]`是从pg_table中取出虚拟地址va对应的页表的物理地址，`& ~0x3ff`是忽略低10位，`(va & 0x3ff)`是取出虚拟地址va的页内地址（低10位），`|`结合后的就是虚拟地址va对应的真实物理地址。
+
+### 在分页机制上运行Nanos-lite
+
+硬件软件协同开发的任务：nanos在初始化进程时，到内存中的页表里写入它设计的虚拟->物理的映射（写pte）。运行时cpu就用虚拟地址到页表里查（查pte），查到物理地址后读出即可。双方共同遵循一套分页规范，也就是RISC-V中规定的Sv32。
+
+硬件：
+
+0. riscv的TLB属于硬件部分，（和cache一样）nemu里我们可以不实现
+1. `isa_mmu_check`不用管是否为S-Mode，nemu里作为M-Mode也要搞分页，也不用管`MMU_FAIL`的情况，所以就根据satp的MODE位返回是否开启分页机制（操作系统调用AM中的`vme_init`，里面`set_satp(kas.ptr)`开启分页机制）
+2. riscv指令和数据严格对齐，所以不会在读取时出现跨页的情况，所以只需要在`vaddr_xxx`函数中通过`isa_mmu_check`判断为需要分页转换后，直接调用`paddr_xxx(isa_mmu_translate(addr, len, xxx), len, data)`即可
+3. `isa_mmu_translate`中直接按照手册里“11.3.2. Virtual Address Translation Process”这一章节的步骤写即可（可以用`goto`咯！）。记得判断要panic的地方。可以略过对pte中的`r` `w` `u` `a` `d`位的检查，这些不用做。
+
+软件：目前`vme_init`中把`NEMU_PADDR_SPACE`里的所有地址都分配到页，已经建立了一个内核页表`kas`，一个一级页表最大空间`1K*1K*4KB=4GB`，完全足够映射这些。`map`里根据传入的`va`，在一级页表`as->ptr`中`va`对应的位置查找二级页表，若不存在就在`pgalloc_usr(PGSIZE)`新建一个二级页表，再到二级页表`va`对应的PTE中直接写入`pa`即可。
+
+> [!TIP]
+> 有很多bit、地址的操作，一个不小心就会导致nanos和nemu两边发现PTE不匹配，需要很长时间的debug才能找到错误。为什么这么容易粗心大意啊……
+>
+> 最终，关闭声卡的功能后（到`libminiSDL`把audio的实现全部注释掉），即可在运行内核线程`hello_fun`的同时，开启`menu`、并进入`nterm`、输入`pal --skip`，无声地跑仙剑。
+
+TODO
+- map传入pa是啥❓pa指向的页在哪里申请过❓
+- nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
+- AddressSpace 是每个进程的代码、数据段的地址空间❓因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace，内核也需要❓
+- 声卡的访问出了什么问题❓vga能正常运行，声卡却不行？
 
 # 二周目问题
 

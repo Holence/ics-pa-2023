@@ -40,7 +40,7 @@ typedef struct {
 typedef struct {
   int pgsize;
   Area area;
-  void *ptr;
+  void *ptr; // 一级页表的地址
 } AddrSpace;
 
 #ifdef __cplusplus

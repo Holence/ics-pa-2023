@@ -59,7 +59,7 @@ bool cte_init(Context *(*handler)(Event, Context *)) {
 }
 
 // 初始化进程，创建空白context
-// - mepc（trap出去mret跳转到的地址）设置为进程的entry地址
+// - mepc（mret跳转到的地址）设置为进程的entry地址
 // - a0设置为arg
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
   Context *p = (Context *)(kstack.end - sizeof(Context));

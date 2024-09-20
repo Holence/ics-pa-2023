@@ -9,8 +9,15 @@ void *new_page(size_t nr_page) {
 }
 
 #ifdef HAS_VME
+// n为分配空间的字节数
 static void *pg_alloc(int n) {
-  return NULL;
+  int nr_page = n / PGSIZE;
+  if (n % PGSIZE != 0) {
+    nr_page++;
+  }
+  void *ret = new_page(nr_page);
+  memset(ret, 0, nr_page * PGSIZE);
+  return ret;
 }
 #endif
 
@@ -24,10 +31,13 @@ int mm_brk(uintptr_t brk) {
 }
 
 void init_mm() {
+  // 将TRM提供的堆区起始地址作为空闲物理页的首地址
   pf = (void *)ROUNDUP(heap.start, PGSIZE);
   Log("free physical pages starting from %p", pf);
 
 #ifdef HAS_VME
+  Log("Allocating Page...");
   vme_init(pg_alloc, free_page);
+  Log("Allocating Page Finished");
 #endif
 }
