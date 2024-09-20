@@ -40,16 +40,18 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
 
 step_2:
   if (i == 1) {
+    // 一级页表
     pte_address = a + (VPN1(vaddr) << 2);          // 偏移量乘以4（每个PTE都是uint32_t）
     pte = paddr_read(pte_address, sizeof(word_t)); // 从一级页表中读出VPN1对应的PTE
   } else {
+    // 二级页表
     pte_address = a + (VPN0(vaddr) << 2);          // 偏移量乘以4（每个PTE都是uint32_t）
     pte = paddr_read(pte_address, sizeof(word_t)); // 从二级页表中读出VPN0对应的PTE
   }
 
   // step_3
   if (PTE_V_BIT(pte) != 1) {
-    panic("pte at " FMT_PADDR " is not valid: " FMT_WORD, pte_address, pte);
+    panic("vaddr = " FMT_PADDR ", i == %d, pte at " FMT_PADDR " is not valid: " FMT_WORD, vaddr, i, pte_address, pte);
   }
 
   if (!PTE_IS_LEAF(pte)) {

@@ -28,13 +28,23 @@ void halt(int code) {
 
 #include "platform/nemu/ioe/ioe.c"
 void _trm_init() {
+  printf("                👆 IOE\n");
+  printf("IOE:            %p\n", 0xa0000000);
   printf("PMEM_END:       %p\n", PMEM_END);
-  printf("                👆HEAP\n");
+  printf("                👆 Process Heap\n");
+  printf("                   |=_=|? malloc() in navy\n");
+  printf("Process _end(brk)\n");
+  printf("Process bss\n");
+  printf("                👆 Process code, data\n");
+  printf("Process:        %p\n", 0x83000000);
+  printf("                👆 Kernel Heap (page tables, process stack)\n");
+  printf("                   |=_=|? new_page() in nanos, pg_alloc() in am\n");
   printf("_heap_start:    %p\n", &_heap_start);
-  printf("_end:           %p\n", &_end);
+  // printf("_end:           %p\n", &_end);
   printf("_stack_pointer: %p\n", &_stack_pointer);
-  printf("                👇STACK\n");
+  printf("                👇 Kernel Stack (size == 0x8000)\n");
   printf("_stack_top:     %p\n", &_stack_top);
+  printf("pcb\n");
   printf("lut[128]:       %p\n", lut);
   printf("_pmem_start:    %p\n", &_pmem_start);
   int ret = main(mainargs);

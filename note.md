@@ -99,7 +99,7 @@ if(XBuf && (inited&4)) {
 }
 ```
 
-## 内存分布
+## PA4之前的内存分布
 
 `/abstract-machine/scripts/linker.ld`中规定了几个地址，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
 
@@ -1045,10 +1045,10 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 
 现在要求navy程序拥有属于自己的函数调用栈！
 
-- 内核栈: 存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈还有什么用❓
+- 内核栈: pcb中存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈对于用户进程来说还有什么用❓
 - 用户栈: 运行时的函数栈，当运行一段时间后，要被挂起时，就在__am_asm_trap中将Context存在用户栈中。
 
-让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
+暂时让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
 
 > [!NOTE]
 > 一山不能藏二虎?
@@ -1061,12 +1061,12 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 
 ---
 
-之后要实现execve时，规定要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB区域。
+要实现execve，规定要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB区域。
 
 > [!NOTE]
 > 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context）
 >
-> 注意：`context_uload`中需要先设置参数再load装入代码，因为argv在用户程序的堆中（_bss上方的区域），会被loader覆盖
+> 注意：`context_uload`中需要先在初始栈中设置好参数，再load装入。因为传入`context_uload`的`argv`其实生长在用户程序的堆中（_bss上方的区域），loader中覆盖掉的
 
 #### BusyBox
 
@@ -1105,12 +1105,48 @@ TODO
 > 有很多bit、地址的操作，一个不小心就会导致nanos和nemu两边发现PTE不匹配，需要很长时间的debug才能找到错误。为什么这么容易粗心大意啊……
 >
 > 最终，关闭声卡的功能后（到`libminiSDL`把audio的实现全部注释掉），即可在运行内核线程`hello_fun`的同时，开启`menu`、并进入`nterm`、输入`pal --skip`，无声地跑仙剑。
+>
+> 其实修理声卡很简单，找到问题所在后只用添加一行即可（提示：NEMU_PADDR_SPACE中是不是少了谁？）
+
+> [!TIP]
+> 目前在堆区`[_heap_start, 0x83000000]`通过申请页`pg_alloc`，创建了一级内核页表，并指向了许多创建的二级页表，并让二级页表中的PTE指向了各个“页”。这些“页”并不是动态生成的，因为目前只是用分页机制让二级页表的PTE覆盖`pmem[0x80000000, 0x88000000]`与外设空间`[0xa0000000, 0xa1010000]`（`NEMU_PADDR_SPACE`指派的几个空间），作`虚拟==物理`的恒等映射。
+>
+> （所幸这些页表并不是很多，只让堆生长到`0x82F72000`的位值，还没威胁到`0x83000000`往上的进程空间）
+>
+> 现在的内存：
+>
+> ```
+>                 👆 IOE
+> IOE:            0xA0000000
+> PMEM_END:       0x88000000
+>                 👆 Process Heap
+>                    |=_=|? malloc() in navy
+> Process _end(brk)
+> Process bss
+>                 👆 Process code, data
+> Process:        0x83000000
+>                 👆 Kernel Heap (page tables, process stack)
+>                    |=_=|? new_page() in nanos, pg_alloc() in am
+> _heap_start:    0x82F4F000
+> _stack_pointer: 0x82F4F000
+>                 👇 Kernel Stack (size == 0x8000)
+> _stack_top:     0x82F47000
+> pcb
+> lut[128]:       0x82F1D8C8
+> _pmem_start:    0x80000000
+> ```
 
 TODO
 - map传入pa是啥❓pa指向的页在哪里申请过❓
 - nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
 - AddressSpace 是每个进程的代码、数据段的地址空间❓因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace，内核也需要❓
-- 声卡的访问出了什么问题❓vga能正常运行，声卡却不行？
+
+### 让DiffTest支持分页机制
+
+TODO
+
+### 在分页机制上运行用户进程
+
 
 # 二周目问题
 

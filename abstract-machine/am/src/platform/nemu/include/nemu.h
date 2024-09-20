@@ -43,9 +43,17 @@
 extern char _pmem_start;              // == 0x8000 0000 == CONFIG_MBASE
 #define PMEM_SIZE (128 * 1024 * 1024) // == 0x800 0000 == CONFIG_MSIZE
 #define PMEM_END ((uintptr_t) & _pmem_start + PMEM_SIZE)
-#define NEMU_PADDR_SPACE                  \
-  RANGE(&_pmem_start, PMEM_END),          \
-      RANGE(FB_ADDR, FB_ADDR + 0x200000), \
+
+// 这里除了pmem空间外，还有三个外设的区间
+// MMIO  RANGE [0xa0000000, 0xa0001000]
+// FB    RANGE [0xa1000000, 0xa1200000]
+// AUDIO RANGE [0xa1200000, 0xa1010000]
+// 0x200000的等于2MB的空间，比800x600的VGA需要1.8MB的空间，400x300的VGA就不在话下了
+// AUDIO设定是64KB，给0x10000刚好
+#define NEMU_PADDR_SPACE                                 \
+  RANGE(&_pmem_start, PMEM_END),                         \
+      RANGE(FB_ADDR, FB_ADDR + 0x200000),                \
+      RANGE(AUDIO_SBUF_ADDR, AUDIO_SBUF_ADDR + 0x10000), \
       RANGE(MMIO_BASE, MMIO_BASE + 0x1000) /* serial, rtc, screen, keyboard */
 
 typedef uintptr_t PTE;

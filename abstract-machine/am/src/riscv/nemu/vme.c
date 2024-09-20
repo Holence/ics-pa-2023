@@ -94,6 +94,7 @@ void map(AddrSpace *as, void *va, void *pa, int prot) {
   if (!PTE_V_BIT(pte)) {
     // 不存在的话申请创建二级页表
     level_2_page_table_addr = pgalloc_usr(PGSIZE);
+    printf("Create Level 2 Page Table 0x%x\n", level_2_page_table_addr);
     // 写入一级页表项
     *level_1_pte_addr = (((PTE)level_2_page_table_addr >> 12) << 10) | 0b0001;
   } else {
