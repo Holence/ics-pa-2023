@@ -1056,7 +1056,7 @@ yield() （此地址存在Context.mepc中，用于以后被mret恢复pc）
 - 内核栈: pcb中存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈对于用户进程来说还有什么用❓
 - 用户栈: 运行时的函数栈，当运行一段时间后，要被挂起时，就在__am_asm_trap中将Context存在用户栈中。
 
-暂时让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。但后面要实现多进程，还是要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB空间。
+暂时让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
 
 > [!NOTE]
 > 一山不能藏二虎?
@@ -1102,10 +1102,14 @@ yield() （此地址存在Context.mepc中，用于以后被mret恢复pc）
   |               |
   ```
 
+还是要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB空间。
+
+> 不能再像刚才那样所有用户进程的函数栈都从heap.end往下生长
+> - 一是因为现在`execve`在`context_uload`需要构建新进程的初始栈，而传入`context_uload`的argv也是在当前进程的初始栈上（打印argv的地址发现为`0x87FFFDA2`），所以要么搞个什么狗皮膏药拷贝备份argv、envp还有那些string area，但这就呵呵了
+> - 而且后面要实现多进程，肯定得搞各自独立的page
+
 > [!TIP]
-> 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context与Context指针）
->
-> 注意：`context_uload`中需要先设置参数再load装入代码，因为argv在用户程序的堆中（_bss上方的区域），会被loader覆盖
+> 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹）（因为此时在跑的是nanos的代码，所以并不影响继续运行），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context与Context指针）
 
 #### BusyBox
 
