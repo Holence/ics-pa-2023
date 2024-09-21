@@ -69,6 +69,15 @@ inline size_t get_disk_offset(int fd) {
   return file_table[fd].disk_offset;
 }
 
+bool file_exist(const char *pathname) {
+  for (int i = 0; i < LENGTH(file_table); i++) {
+    if (strcmp(file_table[i].name, pathname) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int fs_open(const char *pathname, int flags, int mode) {
   // 为了简化实现, 我们允许所有用户程序都可以对所有已存在的文件进行读写
   // 所以可以忽略flags和mode了

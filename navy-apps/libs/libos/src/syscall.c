@@ -126,6 +126,7 @@ int _gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 int _execve(const char *fname, char *const argv[], char *const envp[]) {
+  // PA4.1 BusyBox errno❓不知道怎么设置
   return _syscall_(SYS_execve, (intptr_t)fname, (intptr_t)argv, (intptr_t)envp);
 }
 

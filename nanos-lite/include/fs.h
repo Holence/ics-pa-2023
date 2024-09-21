@@ -16,5 +16,6 @@ size_t fs_lseek(int fd, size_t offset, int whence);
 int fs_close(int fd);
 char *get_file_name(int fd);
 size_t get_disk_offset(int fd);
+bool file_exist(const char *pathname);
 
 #endif

@@ -21,13 +21,18 @@ int sys_gettimeofday(void *tv, void *tz) {
 }
 
 int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
+  // PA3 直接覆盖到0x83000000的地方，内存中只能允许一个用户进程活着
   // naive_uload(NULL, fname); // if succeed, 穿越时空
-  context_uload(current, fname, argv, envp);
-  switch_boot_pcb();
-  yield();
-  panic("execve should not be here");
-  // if failed, return -1
-  return -1;
+
+  // PA4
+  if (file_exist(fname)) {
+    context_uload(current, fname, argv, envp);
+    switch_boot_pcb();
+    yield();
+    panic("execve should not be here");
+  } else {
+    return -2;
+  }
 }
 
 void do_syscall(Context *c) {

@@ -1070,9 +1070,9 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 
 #### BusyBox
 
-TODO
+busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的批处理系统”nterm中的`setenv()`里添加上这个路径即可。
 
-不懂啊❓wc不是在/usr/bin吗？不在ramdisk.img中的还怎么被sys_execve？？
+在之后`execvp()`中会依次在PATH中的路径中寻找文件以获得完整路径，如果系统调用发现找不到就应该返回`-2`，让`execvp()`中寻找下一个PATH中的路径，所以在nanos的系统调用`sys_execve`中提前判断文件是否存在。
 
 ## 4.2
 
