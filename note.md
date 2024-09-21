@@ -99,7 +99,7 @@ if(XBuf && (inited&4)) {
 }
 ```
 
-## 内存分布
+## PA4之前的内存分布
 
 `/abstract-machine/scripts/linker.ld`中规定了几个地址，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
 
@@ -599,16 +599,14 @@ nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lit
 
 ## 3.3
 
-navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数的函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。
-
-PA4后面也是这样吗❓
+navy`make app`编译出的elf会被作为`/nanos-lite/build/ramdisk.img`，被nanos编译时作为resource（data）存入elf中，算是在模拟外存。运行时会被nanos的loader程序，按照elf文件的标准，加载进入内存，就成为了内存中的程序，目前nanos只是把它作为一个不需要参数的函数去调用`((void (*)())entry)()`，navy程序的函数栈就直接长在nanos的栈之上。等到到[PA4.1](#用户进程的上下文切换)，navy程序才能拥有属于自己的函数栈。
 
 ### 实现loader
 
 直接把程序装入到elf segment的vaddr指定的地方，也就是0x83000000往高的区块。
 
 > [!TIP]
-> 但是在[内存分布](#内存分布)打印的信息中可以看到堆区是从`_heap_start`往上的，岂不是会被覆盖？
+> 但是在[内存分布](#PA4之前的内存分布)打印的信息中可以看到堆区是从`_heap_start`往上的，岂不是会被覆盖？
 >
 > navy的程序如果要进行`malloc()`，那也是用的`/navy-apps/libs/libc`的实现，目前是不让调用的，所以目前不会出问题。而后面会让navy程序的堆申请在它自己的.bss段的上方。（而navy程序的函数栈直接就长在nanos的栈之上）
 >
@@ -993,21 +991,31 @@ menu、nterm都行，不过现在就没法通过exit进行halt关机了
 
 ```
 PCB结构
-|               |
-+---------------+ <---- kstack.end
-|               |
-|    context    |
-|               |
-+---------------+ <--+
-|               |    |
-|               |    |
-|               |    |
-|               |    |
-+---------------+    |
-|       cp      | ---+
-+---------------+ <---- kstack.start
-|               |
+整个kstack给了8个页（8个4KB）的空间，对于内核线程来说应该不会覆盖到最下面的三个变量
+|                   |
++-------------------+ <---- kstack.end
+|                   |
+|      Context      |
+|                   |
++-------------------+ <--+
+|  👇Kernel Stack   |    |
+|                   |    |
+|                   |    |
+|                   |    |
+|                   |    |
+|                   |    |
+|                   |    |
+|                   |    |
++-------------------+    |
+| uintptr_t max_brk |    |
++-------------------+    |
+|   AddrSpace as    |    |
++-------------------+    |
+|   Context *cp     | ---+
++-------------------+ <---- kstack.start
+|                   |
 ```
+
 
 ### OS中的上下文切换
 
@@ -1025,30 +1033,30 @@ context_kload(&pcb[0], hello_fun, (void *)0);
 context_kload(&pcb[1], hello_fun, (void *)1);
 ```
 
-- 主线程栈中，分别用`kcontext()`构建初始化用的Context（放在各自PCB的stack的尾部），各自的pcb->cp指向Context，各自的pcb->cp->mepc指向内核中的`hello_fun`函数
-- 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时**魔法**发生了：**“主线程栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`”，主线程栈中的__am_asm_trap结束了，而`pc`和`sp`都就位**，便新建出了线程0
-- 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈中，再`__am_irq_handle() -> schedule()`，保存`pcb->cp`指向Context（用于恢复sp），修改全局变量`current = &pcb[1]`，同理又用**魔法**新建出线程1
-- 线程1在自己的栈中运行，`yield`时同样保存当前的Context在自己的栈中，`schedule()`后又用**魔法**：**“线程1栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为线程1保存的`mepc`”，线程1栈中的__am_asm_trap结束了，而`pc`和`sp`都就位**，返回到线程1
+- 主线程栈中，分别用`kcontext()`构建初始化用的Context（放在各自PCB的stack的尾部，也就是高地址的栈底处），各自的pcb->cp指向Context，各自的pcb->cp->mepc指向内核中的`hello_fun`函数
+- 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时**魔法**发生了：**“主线程栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`”，主线程栈中的__am_asm_trap结束了，而`pc`和`sp`都就位到线程0中**，便新建出了线程0
+- 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈顶，再`__am_irq_handle() -> schedule()`，设置`pcb->cp`指向栈顶保存的Context（用于以后切换回来时恢复sp），修改全局变量`current = &pcb[1]`，同理又用**魔法**新建出线程1
+- 线程1在自己的栈中运行，`yield`时同样保存当前的Context在自己的栈顶，`schedule()`后又用**魔法**：**“线程1栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为Context中保存的`mepc`（线程1要恢复运行的地址）”，线程1栈中的__am_asm_trap结束了，而`pc`和`sp`都就位到线程0中**，返回到线程0
 - 循环往复
 
-当CPU出去忙其他线程时，主线程栈、线程0栈、线程1栈，都维持着这样的函数栈：CPU回来的时候，借用退出者的__am_asm_trap的后半部分恢复sp、Context、pc
+当CPU出去忙其他线程时，主线程栈、线程0栈、线程1栈，都维持着这样的函数栈：CPU回来的时候，借用退出者的__am_asm_trap的后半部分恢复sp、Context、pc。颇有一种NTR的美感。
 
 ```
 线程函数
-yield() （此地址存在Context.mepc中，用于恢复pc）
-保存了挂起时的Context （此地址存在pcb->cp中，用于恢复sp）
+yield() （此地址存在Context.mepc中，用于以后被mret恢复pc）
+保存了挂起时的Context （此地址存在pcb->cp中，用于以后恢复sp）
 ```
 
 ### 用户进程的上下文切换
 
-用户进程与内核线程间的切换原理没啥变化，只不过用户进程运行时的栈不是`pcb[].stack`那么小一点了
+用户进程与内核线程间的切换原理没啥变化，只不过用户进程的栈就不能生活在PCB里了，得在堆上找个大一点的地方住，所以还需要把sp指针引导到那里。
 
 现在要求navy程序拥有属于自己的函数调用栈！
 
-- 内核栈: 存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈还有什么用❓
+- 内核栈: pcb中存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈对于用户进程来说还有什么用❓
 - 用户栈: 运行时的函数栈，当运行一段时间后，要被挂起时，就在__am_asm_trap中将Context存在用户栈中。
 
-让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
+暂时让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。但后面要实现多进程，还是要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB空间。
 
 > [!NOTE]
 > 一山不能藏二虎?
@@ -1056,15 +1064,46 @@ yield() （此地址存在Context.mepc中，用于恢复pc）
 > 因为目前loader只是根据elf给出的虚拟地址装载入内存，两个navy程序依次装载，后者就覆盖了前者。而且目前的栈空间都是从heap.end开始往下，两个navy程序的栈都混着了。
 
 操作系统与编译器的约定（`nanos:context_uload`与`navy:_start`的约定）
-- 初始的sp值在a0中
+- 初始的sp值在a0中：为了让栈开设到堆区上申请出来的页里，就得等schedule、__am_asm_trap用sp得到PCB中Context的地址并初始化完Context后，mret进入进程函数后的第一句指令，立刻设置sp为页上的地址。Nanos-lite和Navy作了一项约定: Nanos-lite把进程的栈顶地址记录到GPRx中, 然后由Navy里面的_start中把栈顶地址设置到sp寄存器中
 - 传入的参数在初始stack中摆放的样子：`nanos:context_uload`中让初始栈从下往上存argc、argv、envp、string area，让初始sp指向这些参数的最底部，也就是argc的地址。这样`navy:_start`后就能方便地顺序读取，之后用户栈往下生长即可，不必理会最上面的这些数据。
+  ```
+  |               |
+  +---------------+ <---- ustack.end
+  |  Unspecified  |
+  +---------------+
+  |               | <----------+
+  |    string     | <--------+ |
+  |     area      | <------+ | |
+  |               | <----+ | | |
+  |               | <--+ | | | |
+  +---------------+    | | | | |
+  |  Unspecified  |    | | | | |
+  +---------------+    | | | | |
+  |     NULL      |    | | | | |
+  +---------------+    | | | | |
+  |    ......     |    | | | | |
+  +---------------+    | | | | |
+  |    envp[1]    | ---+ | | | |
+  +---------------+      | | | |
+  |    envp[0]    | -----+ | | |
+  +---------------+        | | |
+  |     NULL      |        | | |
+  +---------------+        | | |
+  | argv[argc-1]  | -------+ | |
+  +---------------+          | |
+  |    ......     |          | |
+  +---------------+          | |
+  |    argv[1]    | ---------+ |
+  +---------------+            |
+  |    argv[0]    | -----------+
+  +---------------+
+  |      argc     |
+  +---------------+ <---- cp->GPRx
+  |               |
+  ```
 
----
-
-之后要实现execve时，规定要动态地分配用户栈为操作系统堆上`new_page`申请出来的32KB区域。
-
-> [!NOTE]
-> 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context）
+> [!TIP]
+> 在A的执行流中创建用户进程B，直接在A的用户栈中`context_uload(current, fname, argv, envp);`、`new_page`申请属于B的用户栈，传入初始参数，再用`loader`装入B的数据和代码（将A毁尸灭迹），再让原本属于A的pcb写入B的初始化Context（NTR），唯独剩下的是A的用户栈（page并不会被nanos回收）在内存的空泡中遗臭万年，然后`switch_boot_pcb()`是为了不让`schedule()`中把`current->cp`（B的pcb）赋值为`prev`（现在A用户栈中还未死尽的幽灵Context与Context指针）
 >
 > 注意：`context_uload`中需要先设置参数再load装入代码，因为argv在用户程序的堆中（_bss上方的区域），会被loader覆盖
 
@@ -1149,6 +1188,7 @@ TODO
 
 ### 在分页机制上运行用户进程
 
+`make ARCH=riscv32-nemu update VME=1`之后都要用这个去更新fsimg，让navy程序的虚拟地址从`0x40000000`开始
 
 # 二周目问题
 

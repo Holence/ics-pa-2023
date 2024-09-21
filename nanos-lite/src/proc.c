@@ -41,6 +41,7 @@ void hello_fun(void *arg) {
 
 // PA4
 void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
+  // 内核线程的栈，就直接长在PCB中
   pcb->cp = kcontext((Area){pcb->stack, pcb + 1}, entry, arg);
   return;
 }
@@ -86,9 +87,11 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
   AddrSpace addr;
   uintptr_t entry = loader(pcb, filename);
+  // 初始Context依旧在内核的PCB中
   pcb->cp = ucontext(&addr, (Area){pcb->stack, pcb + 1}, (void *)entry);
 
-  // Nanos-lite和Navy作了一项约定: Nanos-lite把进程初始时的栈顶位置设置到GPRx中, 然后由Navy里面的_start来把栈顶位置真正设置到栈指针寄存器中
+  // 为了让栈开设到堆区上申请出来的页里，就得等schedule、__am_asm_trap用sp得到PCB中Context的地址并初始化完Context后，mret进入进程函数后的第一句指令，立刻设置sp为页上的地址
+  // Nanos-lite和Navy作了一项约定: Nanos-lite把进程的栈顶地址记录到GPRx中, 然后由Navy里面的_start中把栈顶地址设置到sp寄存器中
   pcb->cp->GPRx = (uintptr_t)pointer_area_ptr;
 
   return;
