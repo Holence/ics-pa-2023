@@ -31,7 +31,7 @@ void _trm_init() {
   printf("                👆 IOE\n");
   printf("IOE:            %p\n", 0xa0000000);
   printf("PMEM_END:       %p\n", PMEM_END);
-  printf("                👆 Kernel Heap (page tables, pages(process stack))\n");
+  printf("                👆 Kernel Heap (page tables, pages(process code, data, stack, heap))\n");
   printf("                   |=_=|? new_page() in nanos, pg_alloc() in am\n");
   printf("_heap_start:    %p\n", &_heap_start);
   // printf("_end:           %p\n", &_end);

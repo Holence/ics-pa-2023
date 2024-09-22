@@ -56,26 +56,29 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   // 将程序的代码段、数据段装入内存
   uintptr_t entry = loader(pcb, filename);
 
-  // 初始Context依旧放在内核的PCB中，等schedule后被__am_asm_trap恢复
-  pcb->cp = ucontext(&(pcb->as), (Area){pcb, pcb + 1}, (void *)entry);
-
   ///////////////////////////////////////////////////////
+#define PROCESS_STACK_PG_NUM 8
+
   // 在堆区申请的一个32KB的页面作为用户进程栈
-  void *page = new_page(8);
+  void *page = new_page(PROCESS_STACK_PG_NUM);
+
+  // 初始Context，放在用户进程栈的顶端，等schedule后被__am_asm_trap恢复
+  pcb->cp = ucontext(&(pcb->as), (Area){page, page + PROCESS_STACK_PG_NUM * PGSIZE}, (void *)entry);
+
   // 将用户进程栈也通过分页机制管理
   // 规定在虚拟空间中的末尾[0x80000000 - 8*PGSIZE, 0x80000000]
   {
-    void *page_vaddr = pcb->as.area.end - 8 * PGSIZE;
+    void *page_vaddr = pcb->as.area.end - PROCESS_STACK_PG_NUM * PGSIZE;
     void *page_paddr = page;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < PROCESS_STACK_PG_NUM; i++) {
       map(&(pcb->as), page_vaddr, page_paddr, MMAP_READ | MMAP_WRITE);
       page_vaddr += PGSIZE;
       page_paddr += PGSIZE;
     }
   }
 
-  // 开始初始化用户进程栈（string area, envp, argv, argc）
-  char *string_area_ptr = (char *)page + 8 * PGSIZE;
+  // 从初始Context的下面继续向下生长栈，初始化用户进程栈（string area, envp, argv, argc）
+  char *string_area_ptr = (char *)pcb->cp;
 
   // string area - argv
   char **string_ptr = (char **)argv;
