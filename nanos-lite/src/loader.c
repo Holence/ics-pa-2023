@@ -52,8 +52,25 @@ uintptr_t loader(PCB *pcb, const char *filename) {
     fs_read(fd, &phdr, ehdr.e_phentsize);
     if (phdr.p_type == PT_LOAD) {
       fs_lseek(fd, phdr.p_offset, SEEK_SET);
-      fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz);
-      memset((void *)(phdr.p_vaddr + phdr.p_filesz), 0, phdr.p_memsz - phdr.p_filesz);
+      // PA3
+      // fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz);
+      // memset((void *)(phdr.p_vaddr + phdr.p_filesz), 0, phdr.p_memsz - phdr.p_filesz);
+
+      // PA4.3后 用户进程也支持分页
+      // 这里要在堆中动态申请page，并用map写好虚拟->物理的页表项
+      // 这里不能用 fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz)，因为现在还在内核中，satp并没有切换到用户进程的页表
+      int offset = 0;
+      while (offset + PGSIZE < phdr.p_memsz) {
+        void *page = new_page(1);
+        memset(page, 0, PGSIZE);
+        map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+        fs_read(fd, page, PGSIZE);
+        offset += PGSIZE;
+      }
+      void *page = new_page(1);
+      memset(page, 0, PGSIZE);
+      map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+      fs_read(fd, page, phdr.p_memsz - offset);
     }
   }
 

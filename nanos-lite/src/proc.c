@@ -42,15 +42,42 @@ void hello_fun(void *arg) {
 // PA4
 void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
   // 内核线程的栈，就直接长在PCB中
-  pcb->cp = kcontext((Area){pcb->stack, pcb + 1}, entry, arg);
+  pcb->cp = kcontext((Area){pcb, pcb + 1}, entry, arg);
   return;
 }
 
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
+  // 初始化进程的AddrSpace
+  // 设置pgsize为PGSIZE
+  // 设置Area为[0x40000000, 0x80000000]
+  // 新建进程的一级页表，并用as->ptr记录地址
+  protect(&(pcb->as));
 
-  // 每个用户进程的栈，开设在堆区申请的一个32KB的页面中
-  char *string_area_ptr = (char *)new_page(8);
+  // 将程序的代码段、数据段装入内存
+  uintptr_t entry = loader(pcb, filename);
 
+  // 初始Context依旧放在内核的PCB中，等schedule后被__am_asm_trap恢复
+  pcb->cp = ucontext(&(pcb->as), (Area){pcb, pcb + 1}, (void *)entry);
+
+  ///////////////////////////////////////////////////////
+  // 在堆区申请的一个32KB的页面作为用户进程栈
+  void *page = new_page(8);
+  // 将用户进程栈也通过分页机制管理
+  // 规定在虚拟空间中的末尾[0x80000000 - 8*PGSIZE, 0x80000000]
+  {
+    void *page_vaddr = pcb->as.area.end - 8 * PGSIZE;
+    void *page_paddr = page;
+    for (int i = 0; i < 8; i++) {
+      map(&(pcb->as), page_vaddr, page_paddr, MMAP_READ | MMAP_WRITE);
+      page_vaddr += PGSIZE;
+      page_paddr += PGSIZE;
+    }
+  }
+
+  // 开始初始化用户进程栈（string area, envp, argv, argc）
+  char *string_area_ptr = (char *)page;
+
+  // string area - argv
   char **string_ptr = (char **)argv;
   while (*string_ptr != NULL) {
     int size = strlen(*string_ptr) + 1;
@@ -61,6 +88,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   }
   int argv_len = string_ptr - argv + 1; // +1是算上NULL
 
+  // string area - envp
   string_ptr = (char **)envp;
   while (*string_ptr != NULL) {
     int size = strlen(*string_ptr) + 1;
@@ -71,24 +99,21 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   }
   int evnp_len = string_ptr - envp + 1; // +1是算上NULL
 
+  // envp array
   char **pointer_area_ptr = (char **)string_area_ptr;
   pointer_area_ptr -= evnp_len;
   for (int i = 0; i < evnp_len; i++) {
     pointer_area_ptr[i] = envp[i];
   }
-
+  // argv array
   pointer_area_ptr -= argv_len;
   for (int i = 0; i < argv_len; i++) {
     pointer_area_ptr[i] = argv[i];
   }
-
+  // argc
   pointer_area_ptr--;
   *((size_t *)pointer_area_ptr) = argv_len - 1;
-
-  AddrSpace addr;
-  uintptr_t entry = loader(pcb, filename);
-  // 初始Context依旧在内核的PCB中
-  pcb->cp = ucontext(&addr, (Area){pcb->stack, pcb + 1}, (void *)entry);
+  ///////////////////////////////////////////////////////
 
   // 为了让栈开设到堆区上申请出来的页里，就得等schedule、__am_asm_trap用sp得到PCB中Context的地址并初始化完Context后，mret进入进程函数后的第一句指令，立刻设置sp为页上的地址
   // Nanos-lite和Navy作了一项约定: Nanos-lite把进程的栈顶地址记录到GPRx中, 然后由Navy里面的_start中把栈顶地址设置到sp寄存器中
@@ -108,6 +133,13 @@ void init_proc() {
 
 Context *schedule(Context *prev) {
   current->cp = prev;
-  current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
+  if (current == &pcb[0]) {
+    // printf("Switch To PCB 1\n");
+    current = &pcb[1];
+  } else {
+    // printf("Switch To PCB 0\n");
+    current = &pcb[0];
+  }
+
   return current->cp; // 这里返回的Context*，将会在__am_asm_trap中被用于更新sp
 }

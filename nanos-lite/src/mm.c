@@ -4,7 +4,8 @@ static void *pf = NULL;
 
 void *new_page(size_t nr_page) {
   pf += nr_page * PGSIZE;
-  assert((uintptr_t)pf < 0x83000000); // 禁止nanos的堆区生长到navy被load到内存中的地方
+  // PA4.3之前需要禁止，PA4.3就开始load到堆中申请的页面里了
+  // assert((uintptr_t)pf < 0x83000000); // 禁止nanos的堆区生长到navy被load到内存中的地方
   return pf;
 }
 

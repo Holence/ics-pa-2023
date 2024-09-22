@@ -2,9 +2,17 @@
 #include <riscv/riscv.h>
 #include <klib.h>
 
+void __am_get_cur_as(Context *c);
+void __am_switch(Context *c);
+
 static Context *(*user_handler)(Event, Context *) = NULL;
 
 Context *__am_irq_handle(Context *c) {
+  // PA4
+  void *c_before = c;
+  // 在Context中保存之前进程的一级页表地址
+  __am_get_cur_as(c);
+
   // 测试Context结构体定义的正确性
   // uintptr_t *p = c->gpr;
   // for (int i = 0; i < 32 + 3; i++) {
@@ -35,6 +43,12 @@ Context *__am_irq_handle(Context *c) {
     // PA4后，user_handler可能会切换进程，返回另一个进程的context
     c = user_handler(ev, c);
     assert(c != NULL);
+  }
+
+  // PA4
+  if (c != c_before) {
+    // 从Context中取出一级页表地址，设置到satp中
+    __am_switch(c);
   }
 
   return c;

@@ -84,10 +84,5 @@ step_2:
     paddr = (PTE_PPN(pte) << 12) | paddr;
   }
 
-  // 目前全部都在内核空间，恒等映射
-  if (paddr != vaddr) {
-    panic("paddr != vaddr : %x != %x", paddr, vaddr);
-  }
-
   return paddr;
 }

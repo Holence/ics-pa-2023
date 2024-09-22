@@ -562,7 +562,7 @@ mret
 
 `trap.S`同样是看不懂的宏，在Makefile里添加输出preprocess的结果，就能看懂了。
 
-就是开了`(32+3)*4 bytes`的栈空间新建了一个Context结构体，用于传入`__am_irq_handle`。低地址处为Context结构体的开头，高地址处为结尾，可以看到先存了gpr（跳过了`x0`和`sp`），然后存`mcause`，`mstatus`，`mepc`。要求“将地址空间信息与0号寄存器共用存储空间”，也就是哪个`void* pdir`（这东西在`abstract-machine/am/src/riscv/nemu/vme.c`中会从Context结构体中被索要的），因为是地址数据，长度也是4个字节，那就用个union把`gpr[32]`和`pdir`放在一起就行了，存取`pdir`的时候访问的就是`gpr[0]`的格子。
+就是开了`(32+3)*4 bytes`的栈空间新建了一个Context结构体，用于传入`__am_irq_handle`。低地址处为Context结构体的开头，高地址处为结尾，可以看到先存了gpr（跳过了`x0`和`sp`），然后存`mcause`，`mstatus`，`mepc`。要求“将地址空间信息与0号寄存器共用存储空间”，也就是哪个`void* pdir`（这东西在`abstract-machine/am/src/riscv/nemu/vme.c`中会从Context结构体中被索要的，等到[PA4.3](#在分页机制上运行用户进程)会用），因为是地址数据，长度也是4个字节，那就用个union把`gpr[32]`和`pdir`放在一起就行了，存取`pdir`的时候访问的就是`gpr[0]`的格子。
 
 最后记得验证：用nemu的sdb在__am_asm_trap处设置断点，打印所有寄存器（包括csr）的值，与__am_irq_handle中printf出来的所有信息，进行比较。
 
@@ -1155,9 +1155,9 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 > 其实修理声卡很简单，找到问题所在后只用添加一行即可（提示：NEMU_PADDR_SPACE中是不是少了谁？）
 
 > [!TIP]
-> 目前在堆区`[_heap_start, 0x83000000]`通过申请页`pg_alloc`，创建了一级内核页表，并指向了许多创建的二级页表，并让二级页表中的PTE指向了各个“页”。这些“页”并不是动态生成的，因为目前只是用分页机制让二级页表的PTE覆盖到所有内存空间`pmem[0x80000000, 0x88000000]`与外设空间`[0xa0000000, 0xa1010000]`（`NEMU_PADDR_SPACE`指派的几个空间），作`虚拟==物理`的恒等映射。
+> 目前在堆区`[_heap_start, 0x83000000]`通过申请页`pg_alloc`，创建了一级内核页表，并指向了许多创建的二级页表，并让二级页表中的PTE指向了各个“页”。这些“页”并不是动态生成的，因为作为内核，有权利访问到任何地址，这里是在分页机制上让PTE能覆盖到所有内存空间`pmem[0x80000000, 0x88000000]`与外设空间`[0xa0000000, 0xa1010000]`（`NEMU_PADDR_SPACE`指派的几个空间），作`虚拟==物理`的恒等映射。
 >
-> （所幸这些页表并不是很多，只让堆生长到`0x82F72000`的位值，还没威胁到`0x83000000`往上的进程空间）
+> （所幸这些页表并不是很多，只让堆生长到`0x82F72000`的位值，还没威胁到`0x83000000`往上的进程空间。不过后面马上就可以让用户进程从`0x83000000`滚蛋，乖乖塞进一个一个申请出来的页中，再也不用担心这个限制了）
 >
 > 现在的内存：
 >
@@ -1182,12 +1182,9 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 > _pmem_start:    0x80000000
 > ```
 
-TODO
-- map传入pa是啥❓pa指向的页在哪里申请过❓
-- nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
-- AddressSpace 是每个进程的代码、数据段的地址空间❓因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace，内核也需要❓
-- satp，一级页表全都是在恒等映射的内核空间❓
-- 这里native环境没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
+> [!TIP]
+> - nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
+> - 这里native环境没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
 
 ### 让DiffTest支持分页机制
 
@@ -1196,6 +1193,24 @@ TODO
 ### 在分页机制上运行用户进程
 
 `make ARCH=riscv32-nemu update VME=1`之后都要用这个去更新fsimg，让navy程序的虚拟地址从`0x40000000`开始
+
+PCB中的AddressSpace是每个进程的代码、数据段的地址空间，还包含一级页表的地址。因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace。那kas属于谁❓
+
+`context_uload`的过程
+1. `protect()` 初始化进程的AddressSpace，新建一级页表并将地址记录在AddressSpace中
+2. `loader()` 将程序的代码、数据装入一个个堆上申请出来的物理页page中，调用`map()`编写一级、二级页表项
+3. 初始化PCB中的初始Context，将`pcb->cp`指向它
+4. 在堆上申请32KB的空间作为初始栈，令其位于进程AddressSpace的尾部（设其虚拟地址为`[0x80000000 - 8*PGSIZE, 0x80000000]`），调用`map()`编写一级、二级页表项。最后填入初始栈的参数string area、argv、envp...
+5. `pcb->cp->GPRx = 初始栈顶`
+
+进程切换的过程多了“保存、恢复satp（一级页表地址）”的操作
+
+内核线程hello_fun的PCB并没有指向任何一级页表啊❓只是由于“用户进程的页表复制了内核页表，而且在`__am_switch`中只在`c->pdir!=NULL`时才修改`satp`”，让hello_fun借用了别人的一级页表啊。
+
+其他的解释都写在代码的注释里了，这里不重述了
+
+> [!TIP]
+> 到现在进程的代码、数据段，以及进程的函数栈，都搬家到了动态分配的页中，而堆区还没有，所以包含`malloc`的navy程序都无法运行
 
 # 二周目问题
 

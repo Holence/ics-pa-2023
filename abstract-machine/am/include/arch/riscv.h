@@ -9,9 +9,9 @@
 
 struct Context {
   union {
-    uintptr_t gpr[NR_REGS];
+    uintptr_t gpr[NR_REGS]; // 并不存储和恢复sp，PA4中sp将恢复为__am_irq_handle的返回值（切换进程，恢复另一个进程的Context）
     // 将地址空间信息与0号寄存器共用存储空间, 反正0号寄存器的值总是0, 也不需要保存和恢复
-    void *pdir;
+    void *pdir; // page directory 页目录表（一级页表）的地址
   };
   uintptr_t mcause, mstatus, mepc;
 };

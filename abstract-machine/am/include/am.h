@@ -38,9 +38,9 @@ typedef struct {
 // A protected address space with user memory @area
 // and arch-dependent @ptr
 typedef struct {
-  int pgsize;
-  Area area;
-  void *ptr; // 一级页表的地址
+  int pgsize; // protect()中给的默认值就是PGSIZE
+  Area area;  // 进程虚拟空间地址，用户进程的话就是[0x40000000, 0x80000000]
+  void *ptr;  // 一级页表的地址
 } AddrSpace;
 
 #ifdef __cplusplus
