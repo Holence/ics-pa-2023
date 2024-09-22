@@ -103,7 +103,7 @@ void map(AddrSpace *as, void *va, void *pa, int prot) {
     level_2_page_table_addr = pgalloc_usr(PGSIZE);
     // 写入一级页表项
     *level_1_pte_addr = (((PTE)level_2_page_table_addr >> 12) << 10) | 0b0001;
-    printf("Create Level 1 PTE idx=%d level_1_pte_addr=0x%x level_2_page_table_addr=0x%x \n", (uint32_t)VPN1((uint32_t)va), level_1_pte_addr, level_2_page_table_addr);
+    printf("Create Level 1 PTE idx=%d level_1_pte_addr=0x%x level_2_page_table_addr=0x%x -> 0x%x\n", (uint32_t)VPN1((uint32_t)va), level_1_pte_addr, level_2_page_table_addr, va);
   } else {
     level_2_page_table_addr = (PTE *)(PTE)(PTE_PPN(pte) << 12);
   }

@@ -86,7 +86,7 @@ void do_syscall(Context *c) {
     break;
 
   case SYS_brk:
-    Log("STRACE🔍: sys_brk(0x%x)", a[1]);
+    // Log("STRACE🔍: sys_brk(0x%x)", a[1]);
     c->GPRx = mm_brk((uintptr_t)a[1]);
     break;
 

@@ -60,26 +60,39 @@ uintptr_t loader(PCB *pcb, const char *filename) {
       // 这里要在堆中动态申请page，并用map写好虚拟->物理的页表项
       // 这里不能用 fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz)，因为现在还在内核中，satp并没有切换到用户进程的页表
 
-      assert((phdr.p_vaddr & 0xfff) == 0); // 虚拟地址应该是对齐的，这样offset就可以默认为0
-      int offset = 0;
+      int written = 0;
       int filesz = phdr.p_filesz;
       int memsz = phdr.p_memsz;
-      while (offset < filesz) {
-        int len = (filesz - offset < PGSIZE ? filesz - offset : PGSIZE);
+      int offset = phdr.p_vaddr & 0xfff; // Segment起始的虚拟地址不一定是对齐的……
+      if (offset != 0) {
+        int len = (filesz < PGSIZE - offset ? filesz : PGSIZE - offset);
         void *page = new_page(1);
-        map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+        map(&(pcb->as), (void *)phdr.p_vaddr, page, MMAP_READ | MMAP_WRITE);
+        fs_read(fd, page + offset, len);
+
+        int left_part = offset + len;
+        if (left_part < PGSIZE) {
+          memset(page + left_part, 0, PGSIZE - left_part);
+        }
+        written += PGSIZE - offset;
+      }
+
+      while (written < filesz) {
+        int len = (filesz - written < PGSIZE ? filesz - written : PGSIZE);
+        void *page = new_page(1);
+        map(&(pcb->as), (void *)phdr.p_vaddr + written, page, MMAP_READ | MMAP_WRITE);
         fs_read(fd, page, len);
         if (len < PGSIZE) {
           memset(page + len, 0, PGSIZE - len);
         }
-        offset += PGSIZE;
+        written += PGSIZE;
       }
 
-      while (offset < memsz) {
+      while (written < memsz) {
         void *page = new_page(1);
         memset(page, 0, PGSIZE);
-        map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
-        offset += PGSIZE;
+        map(&(pcb->as), (void *)phdr.p_vaddr + written, page, MMAP_READ | MMAP_WRITE);
+        written += PGSIZE;
       }
 
       // 用户进程堆区的起始虚拟地址在bss结尾处，也就是这里装入memsz后的地址
