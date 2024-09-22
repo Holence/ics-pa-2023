@@ -1217,9 +1217,10 @@ TODO
 
 ### 在分页机制上运行仙剑奇侠传
 
-> 一个很奇怪的bug，dummy里`printf`一下，libc里调用`_sbrk`传入的addr竟然比`0xB0000000`还大，无法理解无法排查的bug……最后还是对比了其他人的代码，发现之前一节`loader()`的分页装入写的不对，得认真写啊！（主要是上一节写完后缺少测试，navy的那些test大多都包含`printf`，而有`printf`就得调用`malloc`）
+> 一个很奇怪的bug，dummy里`printf`一下，libc里调用`_sbrk`传入的addr竟然比`0xB0000000`还大，无法理解无法排查的bug……最后还是对比了其他人的代码，发现之前一节`loader()`的分页装入写的不对，得认真写啊！（主要是上一节写完后缺少测试，navy的那些test大多都包含`printf`，而有`printf`就得调用`malloc`，就没法测试）
 > 
 > ```c
+> // 错误代码示例
 > int offset = 0;
 > while (offset + PGSIZE < phdr.p_memsz) {
 >   void *page = new_page(1);
@@ -1257,7 +1258,7 @@ TODO
 > [!NOTE]
 >  可以在用户栈里面创建用户进程上下文吗? ucontext()的行为是在内核栈kstack中创建用户进程上下文. 我们是否可以对ucontext()的行为进行修改, 让它在用户栈上创建用户进程上下文? 为什么?
 >
-> 可以，反正之前的sp也是经过两次跳转（第一次跳到`pcb->cp`去读取初始Context，第二次跳到初始栈的栈顶），把初始Context放到用户进程栈中，只不过就是把第一次sp的跳转引导到`ustack.end - sizeof(Context)`处，而且`context_uload`中需要在`Context`下面继续放入初始化参数，构造初始栈。
+> 可以，反正之前的sp也是经过两次跳转（第一次跳到`pcb->cp`去读取初始Context，第二次跳到初始栈的栈顶），把初始Context放到用户进程栈中，只不过就是把第一次sp的跳转引导到`ustack.end - sizeof(Context)`处，然后在`context_uload`中需要在`Context`下面继续放入初始化参数，构造初始栈。
 > ```
 >   |               |
 >   +---------------+ <---- ustack.end
