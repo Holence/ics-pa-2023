@@ -75,7 +75,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   }
 
   // 开始初始化用户进程栈（string area, envp, argv, argc）
-  char *string_area_ptr = (char *)page;
+  char *string_area_ptr = (char *)page + 8 * PGSIZE;
 
   // string area - argv
   char **string_ptr = (char **)argv;

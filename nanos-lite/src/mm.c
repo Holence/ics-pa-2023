@@ -3,7 +3,9 @@
 
 static void *pf = NULL;
 
+// 向上申请nr_page页，返回pf的原始值
 void *new_page(size_t nr_page) {
+  void *ret = pf;
   pf += nr_page * PGSIZE;
 
   // PA4.3之前，进程处于0x83000000处，需要禁止内核的堆生长到navy被load到内存中的地方
@@ -12,7 +14,7 @@ void *new_page(size_t nr_page) {
   // PA4.3之后，进程被load到独立的页中，内核的堆可以尽情生长，上限就是pemem的上限了
   assert(pf < heap.end);
 
-  return pf;
+  return ret;
 }
 
 #ifdef HAS_VME
