@@ -1120,7 +1120,7 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 
 在之后`execvp()`中会依次在PATH中的路径中寻找文件以获得完整路径，如果系统调用发现找不到就应该返回`-2`，让`execvp()`中寻找下一个PATH中的路径，所以在nanos的系统调用`sys_execve`中提前判断文件是否存在。
 
-## 4.2
+## 4.3
 
 [南大修正的Intel 80386手册](https://github.com/NJU-ProjectN/i386-manual)
 
@@ -1182,9 +1182,9 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 > _pmem_start:    0x80000000
 > ```
 
-> [!TIP]
-> - nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
-> - 这里native环境没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
+
+- nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
+- 这里native环境没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
 
 ### 让DiffTest支持分页机制
 
@@ -1205,8 +1205,6 @@ PCB中的AddressSpace是每个进程的代码、数据段的地址空间，还�
 5. `pcb->cp->GPRx = 初始栈顶`
 
 进程切换的过程多了“保存、恢复satp（一级页表地址）”的操作
-
-内核线程hello_fun的PCB并没有指向任何一级页表啊❓只是由于“用户进程的页表复制了内核页表，而且在`__am_switch`中只在`c->pdir!=NULL`时才修改`satp`”，让hello_fun借用了别人的一级页表啊。
 
 其他的解释都写在代码的注释里了，这里不重述了
 
@@ -1285,6 +1283,19 @@ pcb
 lut[128]:       0x82AFDDF0
 _pmem_start:    0x80000000
 ```
+
+### 支持虚存管理的多道程序
+
+内核线程hello_fun的PCB并没有指向任何一级页表啊，只是由于用户进程的页表复制了内核页表（所有虚拟地址空间都会包含内核映射），而且在`__am_switch`中只在`c->pdir!=NULL`时才修改`satp`，于是hello_fun便借用了用户进程的一级页表……
+
+这样的设计是因为没有设计保护机制？现在用户进程栈上会生长出系统调用的函数（感觉一般的操作系统执行系统调用时应该转入内核态，在用户进程访问不到的地址空间，运行一个所属于该进程的内核栈）。等操作系统课写真正的操作系统时再说吧。
+
+> [!NOTE]
+> 让Nanos-lite加载仙剑奇侠传和hello这两个用户进程; 或者是加载NTerm和hello内核线程, 然后从NTerm启动仙剑奇侠传, 你应该会在运行的时候观察到错误. 尝试分析这一错误的原因, 并总结为了支持这一功能, 我们需要满足什么样的条件. 这可以说是一周目最难的一道思考题了, 虽然我们会在PA4的最后给出分析, 喜欢挑战的同学仍然可以在这里尝试独立思考: 如果你能独立解决这个问题, 说明你对计算机系统的理解可以说是相当了得了.
+>
+> 蛤？我没有遇到任何问题啊❓
+
+- 这里native环境依旧没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
 
 # 二周目问题
 

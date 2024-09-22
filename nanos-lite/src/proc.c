@@ -12,6 +12,7 @@ PCB *current = NULL;
 
 char *empty[] = {NULL};
 char *args_menu[] = {"/bin/menu", NULL};
+char *args_hello[] = {"/bin/hello", NULL};
 char *args_pal[] = {"/bin/pal", "--skip", NULL};
 
 void switch_boot_pcb() {
@@ -128,6 +129,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 void init_proc() {
   context_kload(&pcb[0], hello_fun, (void *)1);
 
+  // context_uload(&pcb[1], args_hello[0], args_hello, empty);
   context_uload(&pcb[1], args_menu[0], args_menu, empty);
   // context_uload(&pcb[1], args_pal[0], args_pal, empty);
 

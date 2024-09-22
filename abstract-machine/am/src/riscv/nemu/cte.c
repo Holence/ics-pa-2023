@@ -79,6 +79,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
   Context *p = (Context *)(kstack.end - sizeof(Context));
   p->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
   p->GPR2 = (uintptr_t)arg;   // 设置即将传入entry的第一个参数a0的值为arg
+  p->pdir = NULL;
   p->mstatus = 0x1800;
   return p;
 }
