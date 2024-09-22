@@ -1218,7 +1218,37 @@ TODO
 
 ### 在分页机制上运行仙剑奇侠传
 
+> 一个很奇怪的bug，dummy里`printf`一下，libc里调用`_sbrk`传入的addr竟然比`0xB0000000`还大，无法理解无法排查的bug……最后还是对比了其他人的代码，发现之前一节loader的分页装入写的不对，得认真写啊！
+> 
+> ```c
+> int offset = 0;
+> while (offset + PGSIZE < phdr.p_memsz) {
+>   void *page = new_page(1);
+>   memset(page, 0, PGSIZE);
+>   map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+>   fs_read(fd, page, PGSIZE);
+>   offset += PGSIZE;
+> }
+> void *page = new_page(1);
+> memset(page, 0, PGSIZE);
+> map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+> fs_read(fd, page, phdr.p_memsz - offset);
+> ```
+> 
+> 遇到这样的一个Segment，会直接跳过while，到最下面成了`fs_read(fd, page, 0x008d8);`，可能会把垃圾值读到bss中：
+> ```
+> Type  Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+> LOAD  0x007000 0x40007000 0x40007000 0x0089c 0x008d8 RW  0x1000
+> ```
+> 
+> 
+> 还有这种Segment，会直接跳过while，到最下面成了`fs_read(fd, page, 0x008d8);`，更是离谱了：
+> ```
+> Type  Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+> LOAD  0x015000 0x40015000 0x40015000 0x00ae4 0x01d34 RW  0x1000
+> ```
 
+`max_brk`可以在`loader()`中初始化
 
 # 二周目问题
 

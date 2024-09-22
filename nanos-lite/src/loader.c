@@ -59,21 +59,35 @@ uintptr_t loader(PCB *pcb, const char *filename) {
       // PA4.3后 用户进程也支持分页
       // 这里要在堆中动态申请page，并用map写好虚拟->物理的页表项
       // 这里不能用 fs_read(fd, (void *)phdr.p_vaddr, phdr.p_memsz)，因为现在还在内核中，satp并没有切换到用户进程的页表
+
+      assert((phdr.p_vaddr & 0xfff) == 0); // 虚拟地址应该是对齐的，这样offset就可以默认为0
       int offset = 0;
-      while (offset + PGSIZE < phdr.p_memsz) {
+      int filesz = phdr.p_filesz;
+      int memsz = phdr.p_memsz;
+      while (offset < filesz) {
+        int len = (filesz - offset < PGSIZE ? filesz - offset : PGSIZE);
+        void *page = new_page(1);
+        map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
+        fs_read(fd, page, len);
+        if (len < PGSIZE) {
+          memset(page + len, 0, PGSIZE - len);
+        }
+        offset += PGSIZE;
+      }
+
+      while (offset < memsz) {
         void *page = new_page(1);
         memset(page, 0, PGSIZE);
         map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
-        fs_read(fd, page, PGSIZE);
         offset += PGSIZE;
       }
-      void *page = new_page(1);
-      memset(page, 0, PGSIZE);
-      map(&(pcb->as), (void *)phdr.p_vaddr + offset, page, MMAP_READ | MMAP_WRITE);
-      fs_read(fd, page, phdr.p_memsz - offset);
+
+      // 用户进程堆区的起始虚拟地址在bss结尾处，也就是这里装入memsz后的地址
+      // 如果装入memsz后地址可以对齐，则max_brk就在此处，之后第一次mm_brk会从max_brk开始申请新页
+      // 如果装入memsz后地址不能对齐，则max_brk可以等在下一个页处（因为前面已经清零了）
+      pcb->max_brk = ROUNDUP(phdr.p_vaddr + phdr.p_memsz, PGSIZE);
     }
   }
-
   return ehdr.e_entry;
 }
 
