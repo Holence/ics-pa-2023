@@ -7,11 +7,7 @@
 void naive_uload(PCB *pcb, const char *filename);
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
 void switch_boot_pcb();
-
-int sys_brk(void *addr) {
-  // 目前堆区大小的调整总是成功
-  return 0;
-}
+int mm_brk(uintptr_t brk);
 
 int sys_gettimeofday(void *tv, void *tz) {
   int us = io_read(AM_TIMER_UPTIME).us;
@@ -90,8 +86,8 @@ void do_syscall(Context *c) {
     break;
 
   case SYS_brk:
-    // Log("STRACE🔍: sys_brk(0x%x)", a[1]);
-    c->GPRx = sys_brk((void *)a[1]);
+    Log("STRACE🔍: sys_brk(0x%x)", a[1]);
+    c->GPRx = mm_brk((uintptr_t)a[1]);
     break;
 
   case SYS_execve:

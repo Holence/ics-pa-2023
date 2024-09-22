@@ -51,7 +51,7 @@ step_2:
 
   // step_3
   if (PTE_V_BIT(pte) != 1) {
-    panic("vaddr = " FMT_PADDR ", i == %d, pte at " FMT_PADDR " is not valid: " FMT_WORD, vaddr, i, pte_address, pte);
+    panic("pc = " FMT_WORD " vaddr = " FMT_PADDR ", i == %d, pte at " FMT_PADDR " is not valid: " FMT_WORD, cpu.pc, vaddr, i, pte_address, pte);
   }
 
   if (!PTE_IS_LEAF(pte)) {

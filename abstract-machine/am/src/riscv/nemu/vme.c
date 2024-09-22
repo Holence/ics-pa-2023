@@ -73,7 +73,7 @@ void __am_get_cur_as(Context *c) {
 // satp = Context的一级页表地址pdir的值
 void __am_switch(Context *c) {
   if (vme_enable && c->pdir != NULL) {
-    printf("Set sapt %x\n", c->pdir);
+    // printf("Set sapt %x\n", c->pdir);
     set_satp(c->pdir);
   }
 }
