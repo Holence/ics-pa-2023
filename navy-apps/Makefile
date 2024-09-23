@@ -183,6 +183,7 @@ $(CLEAN_ALL):
 # APPS = nslider menu nterm bird pal am-kernels fceux oslab0 nplayer busybox 
 APPS = nslider menu nterm pal 
 # TESTS = dummy hello file-test timer-test event-test bmp-test fixedpt-test audio-test cpp-test
+TESTS = hello
 
 # PA4.3后编译Navy程序的虚拟地址到0x40000000处
 VME = 1

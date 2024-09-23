@@ -15,7 +15,10 @@ char *args_menu[] = {"/bin/menu", NULL};
 char *args_hello[] = {"/bin/hello", NULL};
 char *args_pal[] = {"/bin/pal", "--skip", NULL};
 
+static int greedy_process_timer = 0;
+
 void switch_boot_pcb() {
+  greedy_process_timer = 0;
   current = &pcb_boot;
 }
 
@@ -143,9 +146,13 @@ Context *schedule(Context *prev) {
     // printf("Switch To PCB 1\n");
     current = &pcb[1];
   } else {
-    // printf("Switch To PCB 0\n");
-    current = &pcb[0];
+    if (greedy_process_timer % 25 == 0) {
+      // printf("Switch To PCB 0\n");
+      current = &pcb[0];
+      greedy_process_timer = 0;
+    }
   }
 
+  greedy_process_timer++;
   return current->cp; // 这里返回的Context*，将会在__am_asm_trap中被用于更新sp
 }
