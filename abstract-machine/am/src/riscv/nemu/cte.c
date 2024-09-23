@@ -23,7 +23,7 @@ Context *__am_irq_handle(Context *c) {
     switch (c->mcause) {
 
     // ecall
-    case 11:
+    case EXP_MECALL:
       // 根据a7跳转
       if (c->GPR1 == 0xFFFFFFFF) {
         // yield 中赋值的 -1
@@ -33,6 +33,11 @@ Context *__am_irq_handle(Context *c) {
         ev.event = EVENT_SYSCALL;
       }
       c->mepc += 4;
+      break;
+
+    case IRQ_MTIMER:
+      ev.event = EVENT_IRQ_TIMER;
+      // nemu里中断时给mepc的地址时dnpc，所以不用+4了
       break;
 
     default:
@@ -80,7 +85,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
   p->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
   p->GPR2 = (uintptr_t)arg;   // 设置即将传入entry的第一个参数a0的值为arg
   p->pdir = NULL;
-  p->mstatus = 0x1800;
+  p->mstatus = 0x1800 | MSTATUS_MIE;
   return p;
 }
 

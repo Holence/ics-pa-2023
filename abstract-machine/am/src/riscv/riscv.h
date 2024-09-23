@@ -19,11 +19,16 @@ static inline void outl(uintptr_t addr, uint32_t data) { *(volatile uint32_t *)a
 #define PTE_A 0x40
 #define PTE_D 0x80
 
+#define EXP_MECALL 0xb        // mcause of Environment call from M-mode
+#define IRQ_MTIMER 0x80000007 // mcause of Machine timer interrupt
+
 enum { MODE_U,
        MODE_S,
        MODE_M = 3 };
 #define MSTATUS_MXR (1 << 19)
 #define MSTATUS_SUM (1 << 18)
+#define MSTATUS_MIE 0b100
+// #define MSTATUS_MPIE 0b1000000
 
 #if __riscv_xlen == 64
 #define MSTATUS_SXL (2ull << 34)

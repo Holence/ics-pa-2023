@@ -22,6 +22,7 @@ typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   word_t csr[4096]; // 添加了这东西后，记得要去difftest中修改diff_context_t的格式，进行统一
   vaddr_t pc;
+  bool INTR;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
 
 #define mstatus 0x300
@@ -29,6 +30,11 @@ typedef struct {
 #define mepc 0x341
 #define mcause 0x342
 #define satp 0x180
+#define MSTATUS_MIE 0b100
+// #define MSTATUS_MPIE 0b1000000
+
+#define EXP_MECALL 0xb        // mcause of Environment call from M-mode
+#define IRQ_MTIMER 0x80000007 // mcause of Machine timer interrupt
 
 // decode
 typedef struct {

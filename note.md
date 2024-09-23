@@ -522,7 +522,7 @@ cte_init(simple_trap);
 // 设置 __am_asm_trap 中后续会调用的 user_handler
 
 yield();
-// 客户程序调用am中的yield()，这是运行环境提供的一种系统调用❓
+// 客户程序调用am中的yield()。这东西现在没多少用，到PA4.3中会被用于进程间的切换（用户进程定期执行这个系统调用，主动地让出CPU的控制权, 从而让其它进程得到运行的机会。注意这是主动的退让，不是外部来的的时钟中断）
 // asm volatile("li a7, -1; ecall"); 调用自陷指令ecall，触发系统调用这种trap handler，a7是传入的系统调用syscall number，这里约定yield为-1，之后根据syscall number跳转的操作系统中不同函数
 // 使用ecall指令，把nemu引导到mtvec指向的__am_asm_trap中，保存上下文（全部的寄存器，以及mcause、mstatus、mepc），然后进入__am_irq_handle根据a7进行事件分发，跳到对应的用户定义的handler，最后回到_am_asm_trap去恢复上下文，最后mret到正确的mepc处。
 // 做完之后mret指令退出，回到am层的yield()，yield()结束后回到客户程序
@@ -1297,6 +1297,36 @@ _pmem_start:    0x80000000
 > 蛤？我没有遇到任何问题啊❓
 
 - 这里native环境依旧没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
+
+## 4.4
+
+之前的进程切换靠的是进程自觉进行`yield()`进行退让CPU的使用权，不够严苛，还是要用外部的物理监督者——时钟。
+
+每10ms的时钟信号是通过`/nemu/src/device/alarm.c`实现的（这东西在PA2.5的文档中提过一嘴），利用`<signal.h>`库实现定时召唤`alarm_sig_handler`。
+
+处于关中断的部分：
+- ecall（navy中的`_syscall_`与am中的`yield()`）到mret的阶段
+- 时钟中断到mret的阶段
+
+nanos运行两个用户进程的过程：
+1. nanos的`main()`初始化阶段，全程处于关中断：仅在nemu开机`init_isa()`中设置过`mstatus`为0x1800
+2. nanos的`main()`初始化结束，`yield()->ecall`，关中断，`__am_asm_trap`保存nanos内核初始化线程的Context（永远不会再回到这里，永远不会被使用了），`__am_irq_handle->do_event->schedule`，获得到进程0的初始Context地址`pcb[0]->cp`，回到`__am_irq_handle`设置satp一级页表地址，回到`__am_asm_trap`让`sp`跳转到`pcb[0]->cp`，恢复Context，最后mret让pc跳转到entry，开中断，执行第一句指令`mv sp, a0`让sp再次跳转到用户栈栈顶，接着就开始了进程0的函数栈人生，call_main获得传入的参数，main……
+3. 进程0大约运行了10ms，时钟中断，关中断，`__am_asm_trap`保存进程0的Context，`__am_irq_handle->do_event->schedule`，获得到进程1的初始Context地址`pcb[1]->cp`，回到`__am_irq_handle`设置satp一级页表地址，回到`__am_asm_trap`让`sp`跳转到`pcb[1]->cp`，之后同上
+4. 循环往复
+
+这里对上下文切换的描述比较简略，之前在[Nanos-Lite的上下文切换](#Nanos-Lite的上下文切换)有更详细的描述。
+
+> [TIP]
+> 到这里可以去除nanos中所有的`yield()`（除了`main()`、`SYS_yield`和`sys_execve()`中的）
+>
+> 可以利用时钟中断，并发地运行两个用户进程了：hello+pal
+
+> [!NOTE]
+> 中断和用户进程初始化：我们知道, 用户进程从Navy的_start开始运行, 并且在_start中设置正确的栈指针. 如果在用户进程设置正确的栈指针之前就到来了中断, 我们的系统还能够正确地进行中断处理吗?
+>
+> 不可能在“用户进程设置正确的栈指针之前就到发生中断”，因为mret开启中断后，至少会运行一句指令才可能发生时钟中断，而第一句指令就是`mv sp, a0`设置正确的栈指针。
+>
+> 而如果在运行完这句指令后发生了中断，也不会有问题，反正trap里并不会对`sp`之上的内存（那些传入的参数）进行修改，mret回来后当然可以继续正常运行
 
 # 二周目问题
 

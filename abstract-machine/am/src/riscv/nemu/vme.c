@@ -126,6 +126,6 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
   Context *p = (Context *)(kstack.end - sizeof(Context));
   p->pdir = as->ptr;          // 设置Context的一级页表地址
   p->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
-  p->mstatus = 0x1800;
+  p->mstatus = 0x1800 | MSTATUS_MIE;
   return p;
 }

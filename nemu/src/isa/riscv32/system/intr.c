@@ -27,6 +27,8 @@ word_t isa_raise_intr(word_t cause, vaddr_t epc) {
 #endif
   cpu.csr[mepc] = epc;
   cpu.csr[mcause] = cause;
+  // 因为也不涉及多级中断，这里就省略MPIE位的存在吧
+  cpu.csr[mstatus] = cpu.csr[mstatus] & (~MSTATUS_MIE); // MIE置0,关中断
 
   IFDEF(CONFIG_FTRACE, ftrace_log(cpu.csr[mtvec], true));
 
@@ -34,5 +36,10 @@ word_t isa_raise_intr(word_t cause, vaddr_t epc) {
 }
 
 word_t isa_query_intr() {
+  // 如果开中断 且 INTR引脚有时钟信号
+  if ((cpu.csr[mstatus] & MSTATUS_MIE) && cpu.INTR) {
+    cpu.INTR = false;
+    return IRQ_MTIMER;
+  }
   return INTR_EMPTY;
 }
