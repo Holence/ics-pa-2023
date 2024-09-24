@@ -71,22 +71,29 @@ bool cte_init(Context *(*handler)(Event, Context *)) {
   // 001100000101 01110   001    00000 1110011
   // 说明在汇编中写mtvec这个名称的话，就会自动转换为这个csr寄存器的地址，也就是0x305
 
+  // 操作系统的初始化函数栈最后进行yield()去switch时，不需要转到什么PCB的内核栈上，就在原地动手，所以这里ksp=0
+  asm volatile("csrw mscratch, x0");
+
   // register event handler
   user_handler = handler;
 
   return true;
 }
 
-// 初始化进程，创建空白context
+// 设置初始化内核线程的Context
 // - mepc（mret跳转到的地址）设置为进程的entry地址
 // - a0设置为arg
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  Context *p = (Context *)(kstack.end - sizeof(Context));
-  p->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
-  p->GPR2 = (uintptr_t)arg;   // 设置即将传入entry的第一个参数a0的值为arg
-  p->pdir = NULL;
-  p->mstatus = 0x1800 | MSTATUS_MIE;
-  return p;
+  Context *c = (Context *)(kstack.end - sizeof(Context));
+  c->GPR2 = (uintptr_t)arg;   // 设置即将传入entry的第一个参数a0的值为arg
+  c->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
+  c->pdir = NULL;
+  c->mstatus = 0x1800 | MSTATUS_MIE;
+
+  // PA4.4
+  c->np = NP_KERNEL;
+  c->gpr[2] = (uintptr_t)kstack.end; // Context.sp是要新建的内核线程的函数栈的栈顶
+  return c;
 }
 
 void yield() {

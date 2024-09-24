@@ -64,11 +64,11 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   ///////////////////////////////////////////////////////
 #define PROCESS_STACK_PG_NUM 8
 
+  // 初始Context，放在PCB kstack的顶端，等schedule后被__am_asm_trap恢复
+  pcb->cp = ucontext(&(pcb->as), (Area){pcb, pcb + 1}, (void *)entry);
+
   // 在堆区申请的一个32KB的页面作为用户进程栈
   void *page = new_page(PROCESS_STACK_PG_NUM);
-
-  // 初始Context，放在用户进程栈的顶端，等schedule后被__am_asm_trap恢复
-  pcb->cp = ucontext(&(pcb->as), (Area){page, page + PROCESS_STACK_PG_NUM * PGSIZE}, (void *)entry);
 
   // 将用户进程栈也通过分页机制管理
   // 规定在虚拟空间中的末尾[0x80000000 - 8*PGSIZE, 0x80000000]
@@ -82,8 +82,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     }
   }
 
-  // 从初始Context的下面继续向下生长栈，初始化用户进程栈（string area, envp, argv, argc）
-  char *string_area_ptr = (char *)pcb->cp;
+  // 初始化用户进程栈（string area, envp, argv, argc）
+  char *string_area_ptr = (char *)page + PROCESS_STACK_PG_NUM * PGSIZE;
 
   // string area - argv
   char **string_ptr = (char **)argv;
@@ -143,12 +143,12 @@ void init_proc() {
 Context *schedule(Context *prev) {
   current->cp = prev;
   if (current == &pcb[0]) {
-    // printf("Switch To PCB 1\n");
     current = &pcb[1];
+    // printf("Switch To PCB 1 %x\n", current->cp);
   } else {
-    if (greedy_process_timer % 25 == 0) {
-      // printf("Switch To PCB 0\n");
+    if (greedy_process_timer % 50 == 0) {
       current = &pcb[0];
+      // printf("Switch To PCB 0 %x\n", current->cp);
       greedy_process_timer = 0;
     }
   }

@@ -18,7 +18,11 @@ struct Context {
     void *pdir; // page directory 页目录表（一级页表）的地址
   };
   uintptr_t mcause, mstatus, mepc;
+  uintptr_t np; // // PA4.4 Next Privilege 内核态=0 用户态=1
 };
+
+#define NP_KERNEL 0
+#define NP_USER 1
 
 #ifdef __riscv_e
 #define GPR1 gpr[15] // a5

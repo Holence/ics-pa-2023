@@ -1337,12 +1337,15 @@ nanos运行两个用户进程的过程：
 
 ### 内核栈和用户栈的切换
 
-> [!NOTE] 
+> [!NOTE]
 > 为什么目前不支持并发执行多个用户进程?
 >
 > 不存在的问题。如果传入`__am_irq_handle`的`Context*`以及`user_handler`的返回值`Context*`是虚拟地址，才会有文档里说的问题。但我这里的现实是，这些都是分页后的物理页里的物理地址。
 
-“作为一个地址空间描述符指针, 其值在创建用户进程上下文的时候就已经确定, 并在每次进入CTE时, 其值都是一致的. 因此, 我们完全不必在中断异常到来时保存它, 只要在创建用户进程上下文时将其存放在PCB中, 需要切换虚拟地址空间时, 就直接从B的PCB中读出地址空间描述符指针即可”，说的对，进程的一级页表地址可以不用在每次进入`__am_irq_handle`时保存到Context中，放在一个固定的位置就行。
+> [!NOTE]
+> 打破循环依赖的方法：将地址空间描述符指针存放在PCB中, 并在VME中添加一个新API switch_addrspace(), 从正确性来考虑, 这一方案是否可行?
+>
+> 应该可以吧。但后面还是要实现用户栈与内核栈的切换，把保存的Context存入到内核栈中，用这种方法让`Context*`位于内核空间，所以就不考虑这种方案了。
 
 接下来，不是为了“支持并发执行多个用户进程”（这个已经实现了），而是为了实现用户栈（用户态）和内核栈（内核态）的切换，要在系统调用、进程切换时，把这部分的函数栈放在内核空间（PCB）中。
 
@@ -1352,12 +1355,16 @@ nanos运行两个用户进程的过程：
 > - 从物理地址来说：如果`sp`大于`_heap_start`，则表明在用户进程在堆上申请的页里，是用户进程的栈。如果小于`_heap_start`，则要么是最初操作系统的栈`[_stack_pointer, _stack_top]`，要么是PCB里的内核线程栈。
 > - 从虚拟地址来说：位于`USER_SPACE RANGE(0x40000000, 0x80000000)`中的是用户栈，反之是内核栈
 
+内核栈就是PCB里的stack（每个用户进程/内核线程都在PCB里拥有自己的内核栈，用户进程还在堆上的页里拥有自己的用户栈），下面的`ksp`是`当前进程/线程的内核栈顶地址`的全局变量（CPU中的CSR寄存器），作用是在当前进程线程要trap时，提供内核栈顶地址，让保存Context、系统调用等函数栈都发生在内核栈中。只需要记录`当前进程/线程的内核栈顶地址`就足够了，因为切换到另一个进程/线程时，`ksp`也会随之变化。
+
+对于新建进程/线程的操作，在`__am_asm_trap`中“恢复”初始Context的部分也属于内核栈上的事情，所以之前在[PA4.3](#在分页机制上运行仙剑奇侠传)里“在用户栈上创建用户进程上下文”的工作白做了，现在还是要把初始Context放在PCB的栈里。
+
 ```c
 // TIP: 所谓的全局变量，就是CPU中的CSR寄存器
 ebreak or 时钟中断
 __am_asm_trap {
   if (态 is 用户态) { // 从用户进程（pal）进入CTE
-    Context.usp = $sp; // 这是每个用户进程各自在trap后返回用户栈，sp应该恢复的值
+    Context.usp = $sp; // 进入trap时，sp依旧在用户栈的栈顶。因为进入trap后sp会跳转到内核栈，所以这里要用Context保存，等退出trap时用于恢复
     $sp = ksp; // sp跳转到用户进程对应的内核栈，ksp是全局变量
   }
   else { // 从内核线程（hello_fun）进入CTE
@@ -1372,6 +1379,7 @@ __am_asm_trap {
   __am_irq_handle(c); // 可能是系统调用，也可能是Context Switch（用户进程内核线程间，随意切换）
   // 如果是系统调用，sp不变
   // 如果是Context Switch，sp跳转为另一个进程/线程栈的sp，但不管是啥，现在sp都只会在内核栈中
+  //   Context Switch的特殊情况: 初始化进程/线程，sp在内核栈初始Context的下方
 
   // restore context
   // ...
@@ -1431,8 +1439,8 @@ __am_asm_trap {
 ```c
 ebreak or 时钟中断
 __am_asm_trap {
+  Context.sp = $sp; // sp是进入trap时进程/线程的栈顶，Context.sp保存这个值，在退出trap时让sp恢复这个值
   if (ksp != 0) {
-    Context.sp = $sp;
     $sp = ksp;
   }
 
@@ -1450,9 +1458,26 @@ __am_asm_trap {
 
   if (Context.next态 == 用户态) {
     ksp = $sp;
-    $sp = Context.sp;
   }
+  $sp = Context.sp; // sp恢复为进程/线程的栈顶（若是从__am_irq_handle新建进程/线程出来的，则Context.sp是在kcontext()/ucontext()设置的值）
 }
+```
+
+> The mscratch register is an MXLEN-bit read/write register dedicated for use by machine mode. Typically, it is used to hold a pointer to a machine-mode hart-local context space and swapped with a user register upon entry to an M-mode trap handler.
+>
+> 这个`mscratch`寄存器就是为了存内核栈地址的
+
+这个任务要在`trap.S`中写很多指令，搞清楚所有细节后再去写。谢天谢地，一遍过，真不敢想象出错后在一堆汇编代码中找bug的痛苦……
+
+写完后运行起来其实跟之前没有任何区别，要验证的话，就在`__am_irq_handle`的开头或者`schedule`里打印`Context*`，发现确实在`_stack_pointer`之下的数据区：
+
+```
+_stack_pointer: 0x829F4000
+pcb+2:          0x829DB000
+pcb[1]->cp:     0x829DAF70
+pcb+1:          0x829D3000
+pcb[0]->cp:     0x829D2F70
+pcb:            0x829CB000
 ```
 
 # 二周目问题

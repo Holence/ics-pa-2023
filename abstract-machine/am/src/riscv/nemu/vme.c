@@ -122,10 +122,15 @@ void map(AddrSpace *as, void *va, void *pa, int prot) {
   }
 }
 
+// 设置初始化用户进程的Context
 Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
-  Context *p = (Context *)(kstack.end - sizeof(Context));
-  p->pdir = as->ptr;          // 设置Context的一级页表地址
-  p->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
-  p->mstatus = 0x1800 | MSTATUS_MIE;
-  return p;
+  Context *c = (Context *)(kstack.end - sizeof(Context));
+  c->pdir = as->ptr;          // 设置Context的一级页表地址
+  c->mepc = (uintptr_t)entry; // 设置mret将要跳转到entry
+  c->mstatus = 0x1800 | MSTATUS_MIE;
+
+  // PA4.4
+  c->np = NP_USER;
+  // c->gpr[2] = (uintptr_t)as->area.end; // Context.sp是要新建的用户进程的函数栈的栈顶，不过因为用户进程的第一句指令就是跳转sp到初始化栈argc之后的地址，这里就没必要设置了
+  return c;
 }
