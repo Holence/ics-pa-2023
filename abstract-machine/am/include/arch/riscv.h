@@ -9,7 +9,11 @@
 
 struct Context {
   union {
-    uintptr_t gpr[NR_REGS]; // 并不存储和恢复sp，PA4中sp将恢复为__am_irq_handle的返回值（切换进程，恢复另一个进程的Context）
+    // PA4之前，不涉及Context的切换，sp不会变。所以不用保存、恢复gpr[sp]
+    // PA4.1之后，sp将恢复为__am_irq_handle的返回值（切换进程，恢复另一个进程的Context）。所以不用保存、恢复gpr[sp]
+    // PA4.4之后，要实现用户栈和内核栈的切换，需要在进入内核栈之前，用gpr[sp]保存用户进程栈的地址，以便将来让sp恢复回到到用户进程栈
+    uintptr_t gpr[NR_REGS];
+
     // 将地址空间信息与0号寄存器共用存储空间, 反正0号寄存器的值总是0, 也不需要保存和恢复
     void *pdir; // page directory 页目录表（一级页表）的地址
   };
