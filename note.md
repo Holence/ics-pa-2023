@@ -1495,6 +1495,10 @@ pcb:            0x829CB000
 - 2.5 读am-kernels中的LiteNES
 - 3.1 什么是操作系统?
 - 3.2 这些程序状态(x86的eflags, cs, eip; mips32的epc, status, cause; riscv32的mepc, mstatus, mcause)必须由硬件来保存吗? 能否通过软件来保存? 为什么?
+- 4.2 实现基于PIE的loader
+- 4.4 我们在PA3中知道printf()会通过malloc()申请缓冲区, 而malloc()又可能会执行_sbrk(), 通过SYS_brk陷入内核; 在上一个阶段中, 我们实现了支持分页机制的mm_brk(), 在必要的时候它会通过new_page()申请一页. 而仙剑和hello用户进程都会调用printf(), 使得它们可能会并发执行SYS_brk. 思考一下, 目前Nanos-lite的设计会导致并发bug吗? 为什么?
+
+  不会。我们的时钟中断后是关中断的，只有等第一个进程调用完`printf()`，才会开中断，才可能通过时钟中断切换第二个进程里进行`printf()`。
 
 TODO:
 - 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
