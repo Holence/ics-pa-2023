@@ -1144,9 +1144,9 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 0. riscv的TLB属于硬件部分，（和cache一样）nemu里我们可以不实现
 1. `isa_mmu_check`不用管是否为S-Mode，nemu里作为M-Mode也要搞分页，也不用管`MMU_FAIL`的情况，所以就根据satp的MODE位返回是否开启分页机制（操作系统调用AM中的`vme_init`，里面`set_satp(kas.ptr)`开启分页机制）
 2. riscv指令和数据严格对齐，所以不会在读取时出现跨页的情况，所以只需要在`vaddr_xxx`函数中通过`isa_mmu_check`判断为需要分页转换后，直接调用`paddr_xxx(isa_mmu_translate(addr, len, xxx), len, data)`即可
-3. `isa_mmu_translate`中直接按照手册里“11.3.2. Virtual Address Translation Process”这一章节的步骤写即可（可以用`goto`咯！）。记得判断要panic的地方。可以略过对pte中的`r` `w` `u` `a` `d`位的检查，这些不用做。
+3. `isa_mmu_translate`中直接按照手册里“11.3.2. Virtual Address Translation Process”这一章节的步骤写即可（可以用`goto`咯！）。记得判断要panic的地方。可以略过对pte中的`r` `w` `u` `a` `d`位的检查，这些不用做。（实际上等会你在`vme.c:map()`的实现里可以不创建4MB的superpage，所以`isa_mmu_translate`的过程可以简化一些步骤）
 
-软件：目前`vme_init`中把`NEMU_PADDR_SPACE`里的所有地址都分配到页，已经建立了一个内核页表`kas`，一个一级页表最大空间`1K*1K*4KB=4GB`，完全足够映射这些。`map`里根据传入的`va`，在一级页表`as->ptr`中`va`对应的位置查找二级页表，若不存在就在`pgalloc_usr(PGSIZE)`新建一个二级页表，再到二级页表`va`对应的PTE中直接写入`pa`即可。
+软件：目前`vme_init`中把`NEMU_PADDR_SPACE`里的所有地址都分配到页，已经建立了一个内核页表`kas`，一个一级页表最大空间`1K*1K*4KB=4GB`，完全足够映射这些。`map()`里根据传入的`va`，在一级页表`as->ptr`中`va`对应的位置查找二级页表，若不存在就在`pgalloc_usr(PGSIZE)`新建一个二级页表，再到二级页表`va`对应的PTE中直接写入`pa`即可。
 
 > [!TIP]
 > 有很多bit、地址的操作，一个不小心就会导致nanos和nemu两边发现PTE不匹配，需要很长时间的debug才能找到错误。为什么这么容易粗心大意啊……
@@ -1183,9 +1183,7 @@ busybox在fsimg目录下创建了`/usr/bin`的目录，在PA3.5“展示你的�
 > _pmem_start:    0x80000000
 > ```
 
-
-- nanos中会创建4MB的superpage吗❓如果不用的话，isa_mmu_translate里可以省去很多步骤。
-- 这里native环境没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
+- 这里native环境没法跑hello_fun+menu，但能跑hello_fun+hello_fun❓但做到PA4.3的后面native就能跑了
 
 ### 让DiffTest支持分页机制
 
@@ -1211,6 +1209,9 @@ PCB中的AddressSpace是每个进程的代码、数据段的地址空间，还�
 
 > [!TIP]
 > 到现在进程的代码、数据段，以及进程的函数栈，都搬家到了动态分配的页中，而堆区还没有，所以包含`malloc`的navy程序都无法运行
+
+> [!TIP]
+> native的`map()`要求`va`和`pa`对齐页，而我的实现中不要求，所以可以在native的`map()`添加`va = (void *)((uintptr_t)va & (~0xfff));`，这样在其他地方调用`map()`时就不用顾虑`va`了
 
 ### 让DiffTest支持分页机制(2)
 
@@ -1298,8 +1299,6 @@ _pmem_start:    0x80000000
 > 让Nanos-lite加载仙剑奇侠传和hello这两个用户进程; 或者是加载NTerm和hello内核线程, 然后从NTerm启动仙剑奇侠传, 你应该会在运行的时候观察到错误. 尝试分析这一错误的原因, 并总结为了支持这一功能, 我们需要满足什么样的条件. 这可以说是一周目最难的一道思考题了, 虽然我们会在PA4的最后给出分析, 喜欢挑战的同学仍然可以在这里尝试独立思考: 如果你能独立解决这个问题, 说明你对计算机系统的理解可以说是相当了得了.
 >
 > 我没有遇到任何问题。解释见[PA4.4](#内核栈和用户栈的切换)
-
-- 这里native环境依旧没法跑hello_fun+menu❓但能跑hello_fun+hello_fun❓
 
 ## 4.4
 
