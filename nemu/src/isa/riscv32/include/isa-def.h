@@ -27,11 +27,12 @@ typedef struct {
 
 #define mstatus 0x300
 #define mtvec 0x305
+#define mscratch 0x340
 #define mepc 0x341
 #define mcause 0x342
 #define satp 0x180
-#define MSTATUS_MIE 0b100
-// #define MSTATUS_MPIE 0b1000000
+#define MSTATUS_MIE 0b1000
+// #define MSTATUS_MPIE 0b10000000
 
 #define EXP_MECALL 0xb        // mcause of Environment call from M-mode
 #define IRQ_MTIMER 0x80000007 // mcause of Machine timer interrupt

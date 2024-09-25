@@ -27,8 +27,8 @@ enum { MODE_U,
        MODE_M = 3 };
 #define MSTATUS_MXR (1 << 19)
 #define MSTATUS_SUM (1 << 18)
-#define MSTATUS_MIE 0b100
-// #define MSTATUS_MPIE 0b1000000
+#define MSTATUS_MIE 0b1000
+// #define MSTATUS_MPIE 0b10000000
 
 #if __riscv_xlen == 64
 #define MSTATUS_SXL (2ull << 34)

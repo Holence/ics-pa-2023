@@ -31,6 +31,7 @@ void isa_reg_display() {
   printf("%-8s  " FMT_WORD "  %d\n", "mtvec", csr(mtvec), csr(mtvec));
   printf("%-8s  " FMT_WORD "  %d\n", "mepc", csr(mepc), csr(mepc));
   printf("%-8s  " FMT_WORD "  %d\n", "mcause", csr(mcause), csr(mcause));
+  printf("%-8s  " FMT_WORD "  %d\n", "mscratch", csr(mscratch), csr(mscratch));
 }
 
 // 打印gpr，暂时没写打印csr的功能
