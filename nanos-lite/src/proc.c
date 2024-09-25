@@ -29,6 +29,9 @@ void hello_fun(void *arg) {
     if (j % 1000000 == 0) {
       Log("Hello World from Nanos-lite with arg '%p' for the %dth time!", (uintptr_t)arg, j);
     }
+    if (j % 10000000 == 0) {
+      j = 0;
+    }
     j++;
   }
 }
@@ -133,10 +136,10 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
 static PCB *fg_pcb, *bg_pcb;
 void init_proc() {
-  // context_kload(&pcb[0], hello_fun, (void *)1);
 
   Log("Load User Process \"%s\"", args_0[0]);
-  context_uload(&pcb[0], args_0[0], args_0, empty);
+  context_kload(&pcb[0], hello_fun, (void *)1);
+  // context_uload(&pcb[0], args_0[0], args_0, empty);
   bg_pcb = &pcb[0];
 
   Log("Load User Process \"%s\"", args_1[0]);

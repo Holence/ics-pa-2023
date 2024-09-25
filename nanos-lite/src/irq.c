@@ -17,6 +17,9 @@ static Context *do_event(Event e, Context *c) {
     // 我们会在PA4的最后介绍时钟中断相关的内容, 目前识别出时钟中断事件之后什么都不用做, 直接返回相应的上下文结构即可.
     c = schedule(c);
     break;
+  case EVENT_IRQ_IODEV: // native的某个中断信号
+    c = schedule(c);
+    break;
   default:
     panic("Unhandled event ID = %d", e.event);
   }

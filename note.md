@@ -1488,6 +1488,10 @@ pcb:            0x829CB000
 
 很奇怪，加载两个pal后快速切换这两个进程，会出现`address (0xa1075300) is out of bound at pc = 0x800023fc`的错误，是在`find_mapid_by_addr()`找不到fb所属的map？？？怎么可能找不到❓
 
+### 运行ONScripter模拟器
+
+TODO
+
 # 二周目问题
 
 - 1.2 如果没有寄存器, 计算机还可以工作吗? 如果可以, 这会对硬件提供的编程模型有什么影响呢?
