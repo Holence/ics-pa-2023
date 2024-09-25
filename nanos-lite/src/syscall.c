@@ -51,7 +51,7 @@ void do_syscall(Context *c) {
     // PA4
     // 虽然不像naive_uload那样使函数栈一直增加
     // 但目前每次切换新进程，不会free掉旧进程的用户栈page，还是在无止境的递增啊
-    sys_execve(args_menu[0], args_menu, empty);
+    sys_execve(args_1[0], args_1, empty);
     break;
 
   case SYS_yield:

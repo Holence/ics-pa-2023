@@ -13,6 +13,8 @@ static const char *keyname[256] __attribute__((used)) = {
     [AM_KEY_NONE] = "NONE",
     AM_KEYS(NAME)};
 
+void set_fg_pcb(int index);
+
 size_t serial_write(const void *buf, size_t offset, size_t len) {
   // 由于串口是一个字符设备, 对应的字节序列没有"位置"的概念, 因此serial_write()中的offset参数可以忽略
   // yield(); // PA4.1~PA4.3 协同多任务 设备访问缓慢，切换进程，进程主动让出CPU
@@ -31,9 +33,28 @@ size_t events_read(void *buf, size_t offset, size_t len) {
   // - 松开按键事件, 如ku A表示松开A键
   // yield(); // PA4.1~PA4.3 协同多任务 设备访问缓慢，切换进程，进程主动让出CPU
   AM_INPUT_KEYBRD_T ev = io_read(AM_INPUT_KEYBRD);
-  if (ev.keycode == AM_KEY_NONE) {
+  switch (ev.keycode) {
+  case AM_KEY_F1:
+    if (ev.keydown) {
+      set_fg_pcb(1);
+      Log("F1 Pressed, Switch to FG PCB 1");
+    }
     return 0;
-  } else {
+  case AM_KEY_F2:
+    if (ev.keydown) {
+      set_fg_pcb(2);
+      Log("F2 Pressed, Switch to FG PCB 2");
+    }
+    return 0;
+  case AM_KEY_F3:
+    if (ev.keydown) {
+      set_fg_pcb(3);
+      Log("F3 Pressed, Switch to FG PCB 3");
+    }
+    return 0;
+  case AM_KEY_NONE:
+    return 0;
+  default:
     return snprintf(buf, len, "k%c %s\n", ev.keydown ? 'd' : 'u', keyname[ev.keycode]);
   }
 }

@@ -11,9 +11,10 @@ static PCB pcb_boot = {};
 PCB *current = NULL;
 
 char *empty[] = {NULL};
-char *args_menu[] = {"/bin/menu", NULL};
-char *args_hello[] = {"/bin/hello", NULL};
-char *args_pal[] = {"/bin/pal", "--skip", NULL};
+char *args_0[] = {"/bin/hello", NULL};
+char *args_1[] = {"/bin/menu", NULL};
+char *args_2[] = {"/bin/nterm", NULL};
+char *args_3[] = {"/bin/pal", "--skip", NULL};
 
 static int greedy_process_timer = 0;
 
@@ -130,25 +131,40 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
   return;
 }
 
+static PCB *fg_pcb, *bg_pcb;
 void init_proc() {
   // context_kload(&pcb[0], hello_fun, (void *)1);
 
-  context_uload(&pcb[0], args_hello[0], args_hello, empty);
-  context_uload(&pcb[1], args_menu[0], args_menu, empty);
-  // context_uload(&pcb[1], args_pal[0], args_pal, empty);
+  Log("Load User Process \"%s\"", args_0[0]);
+  context_uload(&pcb[0], args_0[0], args_0, empty);
+  bg_pcb = &pcb[0];
+
+  Log("Load User Process \"%s\"", args_1[0]);
+  context_uload(&pcb[1], args_1[0], args_1, empty);
+  fg_pcb = &pcb[1];
+
+  Log("Load User Process \"%s\"", args_2[0]);
+  context_uload(&pcb[2], args_2[0], args_2, empty);
+
+  Log("Load User Process \"%s\"", args_3[0]);
+  context_uload(&pcb[3], args_3[0], args_3, empty);
 
   switch_boot_pcb();
 }
 
+void set_fg_pcb(int index) {
+  fg_pcb = pcb + index;
+}
+
 Context *schedule(Context *prev) {
   current->cp = prev;
-  if (current == &pcb[0]) {
-    current = &pcb[1];
-    // printf("Switch To PCB 1 %x\n", current->cp);
+  if (current == bg_pcb) {
+    current = fg_pcb;
+    printf("Switch To Foreground PCB[%d] %x\n", fg_pcb - pcb, current->cp);
   } else {
     if (greedy_process_timer % 50 == 0) {
-      current = &pcb[0];
-      // printf("Switch To PCB 0 %x\n", current->cp);
+      current = bg_pcb;
+      printf("Switch To Background PCB[%d] %x\n", bg_pcb - pcb, current->cp);
       greedy_process_timer = 0;
     }
   }
