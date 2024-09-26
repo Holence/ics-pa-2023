@@ -38,7 +38,7 @@ __attribute__((always_inline)) static inline void pattern_decode(const char *str
 
   uint64_t __key = 0, __mask = 0, __shift = 0;
 
-  // 写循环的话速度会慢20倍以上？！！
+  // 写循环的话速度会慢40倍以上？！！
   // 宏展开后判断更少，jump更少
   // for (int i = 0; i < 64; i++) {
   //   if (i >= len) {
@@ -106,7 +106,7 @@ __attribute__((always_inline)) static inline void pattern_decode_hex(const char 
                                                                      uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
 
-  // 写循环的话速度会慢20倍以上？！！
+  // 写循环的话速度会慢40倍以上？！！
   // 宏展开后判断更少，jump更少
   // for (int i = 0; i < 16; i++) {
   //   if (i >= len) {
