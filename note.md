@@ -711,6 +711,8 @@ run_ftrace: image
 - lseek允许超出边界，照样返回最终的open_offset
   > lseek() allows the file offset to be set beyond the end of the file (but this does not change the size of the file). 
 
+> 整个PA里涉及到写文件的只有仙剑的存档功能，但由于“简易文件系统”不能写超出原始文件大小的部分，所以保存存档时也得注意操作，很鸡肋啊
+
 ### 虚拟文件系统
 
 - ramdisk和磁盘上的文件，支持lseek操作, 存储这些文件的设备称为"块设备"
@@ -932,7 +934,7 @@ heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中�
 nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`的小星星移植过来做个测试
 
 > [!TIP]
-> `NDL_CloseAudio()`没说是什么，这里我就自己发挥了，规定写入`__am_audio_ctrl`四个寄存器时（也就是nemu中`audio_io_handler`处），当freq、channels、sample三个数都是0时，表明硬件层面要`SDL_CloseAudio`，以便之后其他软件可以重新`SDL_OpenAudio`设置不同的参数
+> `NDL_CloseAudio()`没说是什么，这里我就自己发挥了。nemu声卡的SDL好像不能切换频率❓除了`SDL_CloseAudio`再重新`SDL_OpenAudio`。这里就规定写入`__am_audio_ctrl`四个寄存器时（也就是nemu中`audio_io_handler`处），当freq、channels、sample三个数都是0时，表明nemu声卡要`SDL_CloseAudio`，以便之后其他软件可以重新`SDL_OpenAudio`设置不同的参数。（如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐）
 >
 > 具体硬件要做的：
 > ```c
@@ -945,11 +947,11 @@ nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`�
 > sbuf_index = 0; // reset index
 > ```
 >
-> 如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐
->
 > 所以bad-apple最后退出前，也需要`io_write(AM_AUDIO_CTRL, 0, 0, 0);`去手动触发一下
 >
-> 特别注意！`io_write(AM_AUDIO_CTRL, 0, 0, 0);`对am中的native环境不友好，执行这句后，再第二次OpenAudio`io_write(AM_AUDIO_CTRL, freq, channel, sample);`时，就再也没有声音了。所以一旦接受了我这种设定，nanos中执行`make ARCH=native`将不能多次设定`AM_AUDIO_CTRL`
+> 这种设定并不完美！
+> - `io_write(AM_AUDIO_CTRL, 0, 0, 0);`对am中的native环境不友好，执行这句后，再第二次OpenAudio`io_write(AM_AUDIO_CTRL, freq, channel, sample);`时，就再也没有声音了。所以一旦接受了我这种设定，nanos中执行`make ARCH=native`将不能多次设定`AM_AUDIO_CTRL`。
+> - 而且到了最后可以切换前台进程的阶段，本来是一个在玩pal一个在播放bad-apple，然后pal退出了调用了navy库的`SDL_CloseAudio`，于是这里就让nemu把声卡关了，然后切换回bad-apple，发现nemu声卡的callback都没了，然后就卡死了……
 
 接着去libam把audio的部分补上，现在就可以在nanos中运行有声音的bad-apple了！（为了让ramdisk.img不超过48MB，并且同时包含pal和bad-apple，，bad-apple的声音频率和画幅大小都需要弄小一些）
 

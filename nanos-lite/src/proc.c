@@ -26,13 +26,9 @@ void switch_boot_pcb() {
 void hello_fun(void *arg) {
   int j = 1;
   while (1) {
-    if (j % 100000 == 0) {
-      Log("Hello World from Nanos-lite with arg '%p' for the %dth time!", (uintptr_t)arg, j);
-    }
-    if (j % 1000000 == 0) {
-      j = 0;
-    }
+    Log("Hello World from Nanos-lite with arg '%p' for the %dth time!", (uintptr_t)arg, j);
     j++;
+    yield();
   }
 }
 
@@ -137,8 +133,10 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 static PCB *fg_pcb, *bg_pcb;
 void init_proc() {
 
-  Log("Load User Process \"%s\"", args_0[0]);
-  context_kload(&pcb[0], hello_fun, (void *)1);
+  Log("Load Kernel Thread \"%s\"", args_0[0]);
+  context_kload(&pcb[0], hello_fun, (void *)114514);
+
+  // Log("Load User Process \"%s\"", args_0[0]);
   // context_uload(&pcb[0], args_0[0], args_0, empty);
   bg_pcb = &pcb[0];
 
@@ -153,7 +151,7 @@ void init_proc() {
   context_uload(&pcb[3], args_3[0], args_3, empty);
 
   switch_boot_pcb();
-  play_boot_music();
+  // play_boot_music();
 }
 
 void set_fg_pcb(int index) {

@@ -10,7 +10,7 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_
   assert(dst && src);
   assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
-
+  CallbackHelper();
   // 全屏刷新
   if (srcrect == NULL && dstrect == NULL) {
     if (dst->format->BitsPerPixel == 32) {
@@ -78,7 +78,6 @@ void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
   // printf("SDL_FillRect(%x, %x, %x)\n", dst, dstrect, color);
   assert(dst->format->BitsPerPixel == 32 || dst->format->BitsPerPixel == 8);
   CallbackHelper();
-
 #define DO                                       \
   {                                              \
     int width = dst->w;                          \
@@ -116,7 +115,7 @@ void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
   // printf("SDL_UpdateRect(%x, %d, %d, %d, %d)\n", s, x, y, w, h);
   assert(s->format->BitsPerPixel == 32 || s->format->BitsPerPixel == 8);
-  // CallbackHelper();
+  CallbackHelper();
   int rect_w;
   int rect_h;
   int dst_x;
