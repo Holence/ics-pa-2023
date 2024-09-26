@@ -6,6 +6,7 @@
 !/nexus-am/*
 !/nanos-lite/*
 !/navy-apps/*
+!/.asset/*
 !/img/*
 !Makefile
 !README.md

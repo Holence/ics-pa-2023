@@ -155,6 +155,7 @@ finish:
 }
 
 // --- pattern matching wrappers for decode ---
+#ifndef CONFIG_INST_STATISTIC
 #define INSTPAT(pattern, ...)                                      \
   do {                                                             \
     uint64_t key, mask, shift;                                     \
@@ -164,6 +165,18 @@ finish:
       goto *(destination);                                         \
     }                                                              \
   } while (0)
+#else
+#define INSTPAT(pattern, ...)                                      \
+  do {                                                             \
+    uint64_t key, mask, shift;                                     \
+    pattern_decode(pattern, STRLEN(pattern), &key, &mask, &shift); \
+    inst_statistic_index++;                                        \
+    if ((((uint64_t)INSTPAT_INST(s) >> shift) & mask) == key) {    \
+      INSTPAT_MATCH(s, inst_statistic_index, ##__VA_ARGS__);       \
+      goto *(destination);                                         \
+    }                                                              \
+  } while (0)
+#endif
 
 #define INSTPAT_START(name) \
   {                         \

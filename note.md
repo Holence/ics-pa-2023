@@ -61,10 +61,11 @@
 
 # 重要信息
 
-## 关于NEMU性能
+## 关于优化
 
 - 看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少40倍，导致mario运行时FPS为0，还原为宏后FPS可以到10（`NR_FRAMESKIP==1`的情况）！
   > 把循环次数固定的部分用宏展开，是最极致的loop unrolling（这里因为可以保证循环次数小于64次，可以全部展开。而若是循环不确定的次数，loop unrolling做的是把4次循环要做的放在一次循环内，减少执行跳转与判断指令的数量）
+- nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频率调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[频率记录](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在“分页+时钟中断的两个pcb并发的nanos”中的分数上升20左右
 - `make menuconfig`中Enable Debug Information后，会用`-Og`进行编译，会使性能下降！
 
 ## 关于AM
@@ -537,9 +538,9 @@ yield();
 
 > 看到手册里"3.3.1. Environment Call and Breakpoint"中说会生成`environment-call-from-M-mode`的exception，可以对应到`mcause`中`Interrupt==0`中的第11个
 > 
-> ![mcause](./img/mcause.png)
+> ![mcause](./.asset/mcause.png)
 > 
-> ![exception_code](./img/exception_code.png)
+> ![exception_code](./.asset/exception_code.png)
 
 ### 实现异常响应机制
 
@@ -1532,3 +1533,4 @@ TODO:
 - 整理那些高级的c语言用法到笔记
 - 文档里的做事方法和原则
 - 看看别人的SDL Audio实现
+- 所有的小问号❓
