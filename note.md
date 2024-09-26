@@ -142,9 +142,46 @@ _pmem_start:    0x80000000
 
 - 看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少40倍，导致mario运行时FPS为0，还原为宏后FPS可以到10（`NR_FRAMESKIP==1`的情况）！
   > 把循环次数固定的部分用宏展开，是最极致的loop unrolling（这里因为可以保证循环次数小于64次，可以全部展开。而若是循环不确定的次数，loop unrolling做的是把4次循环要做的放在一次循环内，减少执行跳转与判断指令的数量）
-- nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频度调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[频度](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在“分页+时钟中断的两个pcb并发的nanos”中的分数上升20左右
-- nanos跑ftrace，观察nanos和am中函数的调用[频度](.asset/nanos_ftrace-statistic.txt)，但好像并没有很多需要优化的函数
+- nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频度调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[指令频度](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在中的分数上升20左右（上述环境为“分页+时钟中断的两个pcb并发”的nanos）
+- nanos跑ftrace，观察nanos和am中的[函数调用频度](.asset/nanos_ftrace-statistic.txt)，但好像并没有很多需要优化的函数
 - `make menuconfig`中Enable Debug Information后，会用`-Og`进行编译，会使性能下降！
+
+贴一下跑分（直接在am-kernels中运行），算出来大约只有真机的0.5%😫
+```
+MicroBench naitve: 60913 Marks
+======= Running MicroBench [input *ref*] =======
+[qsort] Quick sort: * Passed.
+  min time: 475.929 ms [925]
+[queen] Queen placement: * Passed.
+  min time: 990.505 ms [410]
+[bf] Brainf**k interpreter: * Passed.
+  min time: 6293.881 ms [267]
+[fib] Fibonacci number: * Passed.
+  min time: 9839.824 ms [204]
+[sieve] Eratosthenes sieve: * Passed.
+  min time: 12296.194 ms [283]
+[15pz] A* 15-puzzle search: * Passed.
+  min time: 1264.628 ms [423]
+[dinic] Dinic's maxflow algorithm: * Passed.
+  min time: 1435.807 ms [569]
+[lzip] Lzip compression: * Passed.
+  min time: 1635.268 ms [415]
+[ssort] Suffix sort: * Passed.
+  min time: 649.518 ms [616]
+[md5] MD5 digest: * Passed.
+  min time: 10388.583 ms [146]
+==================================================
+MicroBench PASS        425 Marks
+                   vs. 100000 Marks (i9-9900K @ 3.60GHz)
+Scored time: 45270.137 ms
+Total  time: 52284.149 ms
+
+CoreMark native:       64920 Marks
+CoreMark riscv32-nemu: 324 Marks
+
+Dhrystone native:       21485 Marks
+Dhrystone riscv32-nemu: 111 Marks
+```
 
 # PA1
 
