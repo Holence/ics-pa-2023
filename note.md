@@ -61,13 +61,6 @@
 
 # 重要信息
 
-## 关于优化
-
-- 看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少40倍，导致mario运行时FPS为0，还原为宏后FPS可以到10（`NR_FRAMESKIP==1`的情况）！
-  > 把循环次数固定的部分用宏展开，是最极致的loop unrolling（这里因为可以保证循环次数小于64次，可以全部展开。而若是循环不确定的次数，loop unrolling做的是把4次循环要做的放在一次循环内，减少执行跳转与判断指令的数量）
-- nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频率调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[频率记录](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在“分页+时钟中断的两个pcb并发的nanos”中的分数上升20左右
-- `make menuconfig`中Enable Debug Information后，会用`-Og`进行编译，会使性能下降！
-
 ## 关于AM
 
 参考阅读: [一生一芯 - Abstract Machine裸机运行时环境](https://www.bilibili.com/video/BV1Vu4y1s73Y/)
@@ -142,6 +135,16 @@ _pmem_start:    0x80000000
 > `buffer`的地址为`0x81C0DFB0`，已经跨越了_stack_top的底线，跑到了全局变量区
 >
 > 导致`buffer`比`lut`的地址还低，由于buffer[index]是往高处写，就把全局变量区都抹了，所以调用`ioe_write`时函数都找不到了
+
+## 关于优化
+
+做完全部的PA再来优化也不迟
+
+- 看宏不顺眼，手贱把nemu中`pattern_decode`和`pattern_decode_hex`写成了循环的形式，导致运行速度降低了至少40倍，导致mario运行时FPS为0，还原为宏后FPS可以到10（`NR_FRAMESKIP==1`的情况）！
+  > 把循环次数固定的部分用宏展开，是最极致的loop unrolling（这里因为可以保证循环次数小于64次，可以全部展开。而若是循环不确定的次数，loop unrolling做的是把4次循环要做的放在一次循环内，减少执行跳转与判断指令的数量）
+- nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频度调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[频度](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在“分页+时钟中断的两个pcb并发的nanos”中的分数上升20左右
+- nanos跑ftrace，观察nanos和am中函数的调用[频度](.asset/nanos_ftrace-statistic.txt)，但好像并没有很多需要优化的函数
+- `make menuconfig`中Enable Debug Information后，会用`-Og`进行编译，会使性能下降！
 
 # PA1
 
@@ -655,7 +658,9 @@ run_ftrace: image
 	$(MAKE) -C $(NEMU_HOME) ISA=$(ISA) run ARGS="$(ELF_ARGS) $(NEMUFLAGS)" IMG=$(IMAGE).bin
 ```
 
-> 因为批处理系统中所有navy程序的function地址区间都是一样的，所以目前不能传入多个navy elf！后面分时多进程后怎么解决这个问题❓
+> 因为批处理系统中所有navy程序的function地址区间都是一样的，所以不能传入多个navy elf！后面实现分页后也一样，所有进程的虚拟地址空间都是从`0x40000000`开始。所以只能用ftrace观察一个navy程序的运行。
+>
+> 而且注意别传错了，nanos开机后立刻执行的是哪个navy程序就传入哪个elf。不然可能因为找不到进入的函数，导致跳出多于进入，输出的indent的个数都成负数了。
 
 ## 3.4
 
@@ -782,7 +787,7 @@ bash ./convert.sh
 > [!TIP]
 > 文档说的不全，实现`SDL_UpdateRect()`后还需要实现在`SDL_BlitSurface(slide, NULL, screen, NULL)`中把`slide`赋值给`screen`，才能成功展示第一页PPT
 
-❓❓❓`SDL_PollEvent()`竟然还得遍历键盘名称数组来获取scancode，太低效了……为什么不直接约定event string中传scancode，如果说是AM中的AM_KEYS enum和native用的SDL库中的不一致，那一开始就用SDL的标准`SDL_Scancode`不就好了？
+狗屎`SDL_PollEvent()`竟然还得遍历键盘名称数组来获取scancode，太低效了，导致ftrace出来发现`strcmp`的使用频度贼高……为什么不直接约定event string中传scancode？？如果说是AM中的AM_KEYS enum和native用的SDL库中的不一致，那从一开始所有地方都用SDL的标准`SDL_Scancode`不就好了？
 
 > `BMP_Load`老慢了，nemu上需要7秒才能读入一页ppt。BMP的脑残格式是逆向存储的，而且还是24bit的格式，我们要的pixel是32bit。优化了一下可以到4秒多。
 >
@@ -1300,6 +1305,9 @@ _pmem_start:    0x80000000
 >
 > 我没有遇到任何问题。解释见[PA4.4](#内核栈和用户栈的切换)
 
+> [!TIP]
+> 实现分页后ftrace在navy程序中依旧可以使用。因为`pc`（传入`ftrace_log`的地址）是未经过mmu翻译的虚拟地址（只有在`vaddr_read`和`vaddr_write`时才会用mmu翻译），刚好可以对应到elf中的信息。
+
 ## 4.4
 
 之前的进程切换靠的是进程自觉进行`yield()`进行退让CPU的使用权，不够严苛，还是要用外部的物理监督者——时钟。
@@ -1528,9 +1536,9 @@ TODO
   不会。我们的时钟中断后是关中断的，只有等第一个进程调用完`printf()`，才会开中断，才可能通过时钟中断切换第二个进程里进行`printf()`。
 
 TODO:
-- 优化！！ftrace 在程序性能优化上的作用？统计函数调用的次数，对访问次数较多的函数进行优化，可以显著提升程序的性能。
 - note.md中检查所有提到“操作系统”的语句严谨性
 - 整理那些高级的c语言用法到笔记
-- 文档里的做事方法和原则
 - 看看别人的SDL Audio实现
 - 所有的小问号❓
+- 所有的TODO
+- 网页转换为md，文档里的做事方法和原则

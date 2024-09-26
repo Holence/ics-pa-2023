@@ -153,6 +153,7 @@ void init_proc() {
   context_uload(&pcb[3], args_3[0], args_3, empty);
 
   switch_boot_pcb();
+  play_boot_music();
 }
 
 void set_fg_pcb(int index) {

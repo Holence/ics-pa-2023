@@ -77,8 +77,10 @@ static void decode_operand(Decode *s, int type) {
 }
 
 #ifdef CONFIG_INST_STATISTIC
-static uint64_t inst_statistic[64] = {0};
-void print_inst_statistic() {
+static word_t inst_statistic[64] = {0};
+
+// 打印指令频度
+void inst_statistic() {
   printf("----------INST STATISTIC----------\n");
   printf("NO COUNT\n");
   for (int i = 1; i <= 51; i++) {
@@ -118,6 +120,8 @@ static int decode_exec(Decode *s) {
 
   // INSTPAT(模式字符串, 指令名称, 指令类型, 指令执行操作);
   // 指令名称不会被使用，只作为注释
+
+  // INSTPAT的顺序已经过按照inst_statistic的结果进行优化，正常排序的版本见git的历史
 
   INSTPAT("???????????? ????? 000 ????? 0010011", addi, I, gpr(rd) = src1 + imm);
   INSTPAT("???????????? ????? 100 ????? 0000011", lbu, I, gpr(rd) = Mr(src1 + imm, 1));

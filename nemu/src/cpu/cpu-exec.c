@@ -33,7 +33,8 @@ static bool g_print_step = false;
 
 void SDL_PauseAudio(int pause_on);
 void device_update();
-void print_inst_statistic();
+void inst_statistic();
+void ftrace_statistic();
 
 #ifdef CONFIG_ITRACE
 static void itrace(Decode *s) {
@@ -160,7 +161,8 @@ static void execute(uint64_t n) {
 }
 
 static void statistic() {
-  IFDEF(CONFIG_INST_STATISTIC, print_inst_statistic());
+  IFDEF(CONFIG_INST_STATISTIC, inst_statistic());
+  IFDEF(CONFIG_FTRACE, ftrace_statistic());
 
   IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
 #define NUMBERIC_FMT MUXDEF(CONFIG_TARGET_AM, "%", "%'") PRIu64

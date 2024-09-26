@@ -24,16 +24,20 @@ static void read_str_from_file(FILE *file, size_t offset) {
   }
 }
 
+#define FTRACE_FUNC_NAME_MAXLEN 64
+#define FTRACE_FUNC_MAXLEN 256
+
 static struct {
-  char name[64];
+  char name[FTRACE_FUNC_NAME_MAXLEN];
   vaddr_t start;
   vaddr_t end;
-} Functions[512];
+  word_t count; // 统计调用的频度
+} Functions[FTRACE_FUNC_MAXLEN];
 
 static int functions_nums = 0;
 void record_function(char *name, vaddr_t start, vaddr_t size) {
-  assert(functions_nums < 512);
-  assert(strlen(name) < 64);
+  assert(functions_nums < FTRACE_FUNC_MAXLEN);
+  assert(strlen(name) < FTRACE_FUNC_NAME_MAXLEN);
 
   // 不要侦测putch了，太烦人了
   if (strcmp(name, "putch") == 0)
@@ -41,6 +45,7 @@ void record_function(char *name, vaddr_t start, vaddr_t size) {
   strcpy(Functions[functions_nums].name, name);
   Functions[functions_nums].start = start;
   Functions[functions_nums].end = start + size;
+  Functions[functions_nums].count = 0;
   functions_nums++;
 }
 
@@ -128,6 +133,9 @@ void ftrace_log(vaddr_t address, bool jump_in) {
       // 函数真实范围，包含start，不包含end
       if (address >= Functions[i].start && address < Functions[i].end) {
         func_name = Functions[i].name;
+        if (jump_in) {
+          Functions[i].count++;
+        }
         break;
       }
     }
@@ -136,13 +144,22 @@ void ftrace_log(vaddr_t address, bool jump_in) {
       // printf里的一堆调用太烦人了
       if (strcmp(func_name, "printf") == 0) {
         in_printf = jump_in;
-        print_frace(address, jump_in, func_name);
+        print_frace(address, jump_in, func_name); // 如果只是看调用频度的话，可以把这行注释掉
         return;
       }
       if (!in_printf) {
-        print_frace(address, jump_in, func_name);
+        print_frace(address, jump_in, func_name); // 如果只是看调用频度的话，可以把这行注释掉
         return;
       }
     }
   }
+}
+
+// 打印函数调用频度
+void ftrace_statistic() {
+  printf("----------FTRACE STATISTIC----------\n");
+  for (int i = 0; i < functions_nums; i++) {
+    printf("%010d %s\n", Functions[i].count, Functions[i].name);
+  }
+  printf("----------------------------------\n");
 }
