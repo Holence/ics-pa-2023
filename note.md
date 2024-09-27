@@ -545,7 +545,7 @@ TODO: 编译与链接
 > 
 > - 系统调用：让客户程序乖乖地等待被服务
 >   
->   客户程序需要调用操作系统的各种系统调用函数，这些系统调用函数会通过cpu的自陷指令（比如risc-v中的ecall），召唤类型为Syscall的Trap Handler，并附加上不同的syscall number（比如risc-v中的a7寄存器），让Syscall的Trap Handler根据syscall number再跳转到操作系统中所对应的各种处理函数。
+>   客户程序需要调用操作系统的各种系统调用函数，这些系统调用函数会通过cpu的自陷指令（比如risc-v中的ecall），设置中断原因（risc-v中的mcause）为Syscall，并附加上不同的syscall number（比如risc-v中的a7寄存器），进入Trap Handler后根据中断原因跳转到操作系统的handler，之后再根据syscall number再跳转到操作系统中对应的处理函数。
 > 
 > - 异常：计算出错，让客户程序crash，而不是整个机器crash
 > 
@@ -625,7 +625,7 @@ __am_irq_handle中判断`mcause`为11且`a7`为-1，分配`ev.event=EVENT_YIELD`
 
 > 事实上, 自陷只是其中一种异常类型. 有一种故障类异常, 它们返回的PC和触发异常的PC是同一个, 例如缺页异常, 在系统将故障排除后, 将会重新执行相同的指令进行重试, 因此异常返回的PC无需加4. 所以根据异常类型的不同, 有时候需要加4, 有时候则不需要加.
 
-作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，也就是相当于am）中，根据event的不同类型，修改`mepc`为正确的值。
+作为RISC，`mret`的作用仅仅就是恢复`mepc`，所以就需要在软件（操作系统，PA里划分到了am层）中，根据event的不同类型，修改`mepc`为正确的值。
 
 ## Makefile解析: navy on nanos
 
@@ -1237,7 +1237,7 @@ TODO
 
 `make ARCH=riscv32-nemu update VME=1`之后都要用这个去更新fsimg，让navy程序的虚拟地址从`0x40000000`开始
 
-PCB中的AddressSpace是每个进程的代码、数据段的地址空间，还包含一级页表的地址。因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace。那kas属于谁❓
+PCB中的AddressSpace是每个进程的代码、数据段的地址空间，还包含一级页表的地址。因为不同进程的虚拟地址都一样，所以每个进程都需要一份自己的AddressSpace。kas是内核空间，要作为公共的使用（这样做的原因见[后面](#支持虚存管理的多道程序)）
 
 `context_uload`的过程
 1. `protect()` 初始化进程的AddressSpace，新建一级页表并将地址记录在AddressSpace中
@@ -1320,22 +1320,37 @@ TODO
                 👆 IOE
 IOE:            0xA0000000
 PMEM_END:       0x88000000
-                👆 Kernel Heap (page tables, pages(process code, data, stack, heap))
+                👆 OS Heap: page tables, pages (process code, data, user stack, heap)
                    |=_=|? new_page() in nanos, pg_alloc() in am
 _heap_start:    0x82B2F000
 _stack_pointer: 0x82B2F000
-                👇 Kernel Stack (size == 0x8000)
+                👇 OS Stack (size == 0x8000)
 _stack_top:     0x82B27000
-pcb
+pcb                Kernel Stack
 lut[128]:       0x82AFDDF0
 _pmem_start:    0x80000000
 ```
 
+不知不觉中，我们已经基本实现了传统的进程虚拟空间分布！内核空间在最顶上，栈往下生长，堆从`.bss`的结尾往上生长，最下面是数据和代码区：
+
+![elf-load](elf-load.jpg)
+
 ### 支持虚存管理的多道程序
 
-内核线程hello_fun的PCB并没有指向任何一级页表啊，只是由于用户进程的页表复制了内核页表（所有虚拟地址空间都会包含内核映射），而且在`__am_switch`中只在`c->pdir!=NULL`时才修改`satp`，于是hello_fun便借用了用户进程的一级页表……这样做是因为没有设计保护机制？
+`pcb->as->ptr`是用户进程/内核线程的页表
+- 用户进程的页表除了有自己虚拟空间`[0x40000000, 0x80000000]`，还包含内核空间`NEMU_PADDR_SPACE[0x80000000, 0x88000000]与[0xa0000000, 0xa1010000]`（在`protect()`中拷贝了`kas`），因为trap发生的时候，satp仍为进程的页表，而trap的过程中需要在内核空间中寻找handler函数的代码与数据
+- 内核线程按理来说应该拥有覆盖内核空间`NEMU_PADDR_SPACE`的页表，但am里的实现是“让内核线程借用用户进程的页表”（内核线程连`pcb->as`都没有，Contex中的`pdir`也只是`NULL`，而`__am_switch`只在`c->pdir!=NULL`时才修改`satp`）
 
-而且现在用户进程栈上会生长出系统调用的函数，而一般的操作系统在执行系统调用时应该转入“内核态”，在用户进程访问不到的地址空间，运行一个所属于该进程的内核栈（等到后面PA4.4就会为用户进程实现“用户栈与内核栈”的切换了）
+现在用户进程栈上会生长出系统调用的函数，而一般的操作系统在执行系统调用时应该转入“内核态”，运行一个所属于该进程的内核栈（等到后面PA4.4就会为用户进程实现“用户栈与内核栈”的切换了）
+
+> [!TIP]
+> 目前这种设计只是在用户进程之间进行了隔离，用户进程通过自己的页表无法查找到其他用户进程的物理地址。但是用户进程可以查找到任意物理地址，并进行修改，因为我们的nemu里并没有保护机制。
+>
+> 下面的待核实❓
+>
+> 在现实操作系统中，CPU会根据是否为内核态，来限制是否能访问高地址的内核空间，以及根据页表项的读写属性，来限制是否能读写数据区、代码区。
+> 
+> 在实现了trap中用户栈与内核栈的切换之后，现实操作系统在trap后会进入内核态（依旧使用进程的页表，这里不可以替换为仅含有内核空间的页表，因为trap handler可能需要用虚拟地址访问进程虚拟空间的数据区），从而可以访问高地址的内核空间，从而去执行trap handler的那些函数。
 
 到现在已经可以并发运行pal和hello两个用户进程了！
 
@@ -1575,8 +1590,6 @@ TODO
   不会。我们的时钟中断后是关中断的，只有等第一个进程调用完`printf()`，才会开中断，才可能通过时钟中断切换第二个进程里进行`printf()`。
 
 TODO:
-- note.md中检查所有提到“操作系统”的语句严谨性
-- 整理那些高级的c语言用法到笔记
 - 看看别人的SDL Audio实现
 - 所有的小问号❓
 - 所有的TODO

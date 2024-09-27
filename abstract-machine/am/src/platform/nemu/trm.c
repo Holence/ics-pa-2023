@@ -30,11 +30,11 @@ void _trm_init() {
   printf("                👆 IOE\n");
   printf("IOE:            %p\n", 0xa0000000);
   printf("PMEM_END:       %p\n", PMEM_END);
-  printf("                👆 Main Heap: page tables, pages (process code, data, user stack, heap)\n");
+  printf("                👆 OS Heap: page tables, pages (process code, data, user stack, heap)\n");
   printf("                   |=_=|? new_page() in nanos, pg_alloc() in am\n");
   printf("_heap_start:    %p\n", &_heap_start);
   printf("_stack_pointer: %p\n", &_stack_pointer);
-  printf("                👇 Main Stack (size == 0x8000)\n");
+  printf("                👇 OS Stack (size == 0x8000)\n");
   printf("_stack_top:     %p\n", &_stack_top);
   printf("pcb                Kernel Stack\n");
   printf("lut[128]:       %p\n", lut);

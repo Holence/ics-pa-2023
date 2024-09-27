@@ -95,7 +95,7 @@ step_2:
   pte_address = a + (VPN1(vaddr) << 2);            // 偏移量乘以4（每个PTE都是uint32_t）
   pte = paddr_read(pte_address, sizeof(word_t));   // 从一级页表中读出VPN1对应的PTE
   if (PTE_V_BIT(pte) != 1) {
-    panic("pc = " FMT_WORD " vaddr = " FMT_PADDR ", pte at " FMT_PADDR " is not valid: " FMT_WORD, cpu.pc, vaddr, pte_address, pte);
+    panic("Level 1 Type = %d pc = " FMT_WORD " vaddr = " FMT_PADDR ", pte at " FMT_PADDR " is not valid: " FMT_WORD, type, cpu.pc, vaddr, pte_address, pte);
   }
 
   // 二级页表
@@ -103,7 +103,7 @@ step_2:
   pte_address = a + (VPN0(vaddr) << 2);          // 偏移量乘以4（每个PTE都是uint32_t）
   pte = paddr_read(pte_address, sizeof(word_t)); // 从二级页表中读出VPN0对应的PTE
   if (PTE_V_BIT(pte) != 1) {
-    panic("pc = " FMT_WORD " vaddr = " FMT_PADDR ", pte at " FMT_PADDR " is not valid: " FMT_WORD, cpu.pc, vaddr, pte_address, pte);
+    panic("Level 2 Type = %d pc = " FMT_WORD " vaddr = " FMT_PADDR ", pte at " FMT_PADDR " is not valid: " FMT_WORD, type, cpu.pc, vaddr, pte_address, pte);
   }
   paddr_t paddr = PAGE_OFFSET(vaddr);
   paddr = (PTE_PPN(pte) << 12) | paddr;
