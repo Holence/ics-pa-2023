@@ -28,11 +28,11 @@ int SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained) {
   }
 
   // SDL_Audio_sample = desired->samples;
-  SDL_Audio_sample = desired->samples * (desired->format / 8) * desired->channels; // 不知道该为多少，不过这样设置的话nplayer的波形图才正确❓❓❓
+  SDL_Audio_sample = desired->samples * (desired->format / 8) * desired->channels; // 不知道该为多少，不过这样设置的话nplayer的波形图才正确❓
   SDL_Audio_buf = malloc(SDL_Audio_sample);
   SDL_Audio_callback = desired->callback;
 
-  SDL_Audio_interval_ms = SDL_Audio_sample * 100 / desired->freq; // * 1000 ❓❓❓
+  SDL_Audio_interval_ms = SDL_Audio_sample * 100 / desired->freq; // * 1000 ❓
   SDL_Audio_tick = NDL_GetTicks();
 
   return 0;

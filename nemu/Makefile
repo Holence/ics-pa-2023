@@ -52,7 +52,7 @@ CFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))# O2
 CFLAGS_BUILD += $(if $(CONFIG_CC_LTO),-flto,)# LinkTimeOptimization
 CFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)# Debug info
 CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,)# sanitizer
-CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)#❓不管是啥都是true？
+CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
 CFLAGS  += $(CFLAGS_BUILD) $(CFLAGS_TRACE) -D__GUEST_ISA__=$(GUEST_ISA)
 LDFLAGS += $(CFLAGS_BUILD)
 

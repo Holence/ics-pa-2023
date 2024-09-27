@@ -97,7 +97,8 @@ if(XBuf && (inited&4)) {
 
 ## PA4之前的内存分布
 
-`/abstract-machine/scripts/linker.ld`中规定了几个地址，怎么堆在栈的上面❓跟普遍的内存结构模型不一样啊？？
+`/abstract-machine/scripts/linker.ld`中规定了几个地址
+
 
 ```
 PMEM_END:       0x88000000
@@ -110,13 +111,19 @@ lut[128]:       0x81C11230
 _pmem_start:    0x80000000
 ```
 
-还有，也没见`_stack_top`在哪里被使用啊？确实应该添加一个检查是否超过栈顶的代码，不然随手在函数内设个大数组，就把全局变量给抹没了。但这怎么实现，nemu并不知道_stack_top的存在（除非解析elf文件），而这种检测也确实不应该在硬件层面实现❓
-
-> PA3.2: 另一种你可能会碰到的UB是栈溢出, 对, 就是stackoverflow的那个. 检测栈溢出需要一个更强大的运行时环境, AM肯定是无能为力了, 于是就UB吧.
-
-> bad-apple的案例
+> 小问号同学：堆在栈的上面，咋跟传统的内存结构模型不一样捏？
 >
-> 这里不能用栈来存大数组！！！
+> ![elf-load](elf-load.jpg)
+>
+> 因为现在实现的不是进程的虚拟空间，而是系统内核的空间
+
+> 小问号同学：也没见`_stack_top`在哪里被使用啊？
+> 
+> 确实应该添加检测是否超过栈区的功能，不然随手在函数内设个大数组，就把全局变量给抹没了。但这怎么实现呢，nemu并不知道_stack_top的存在（除非解析elf文件），这种检测也确实不应该在硬件层面实现，应该在AM或是操作系统中检测。PA3.2中会说：“另一种你可能会碰到的UB是栈溢出, 对, 就是stackoverflow的那个. 检测栈溢出需要一个更强大的运行时环境, AM肯定是无能为力了, 于是就UB吧”。在PA过程中，正常情况下，内核的栈并不会触顶。
+>
+> ---
+>
+> bad-apple中不正常的案例：不能用栈来存大数组！！！
 >
 > `uint32_t buffer[VIDEO_ROW * VIDEO_COL];`
 >
@@ -407,10 +414,10 @@ run_ftrace: image
 > 用am-kernels的测试程序：
 >   - 保证am-kernels测试程序的正确: native + glibc 跑 am-kernels
 >   - 保证klib正确: native + klib 跑 am-kernels的klib-tests
->   - 保证am与nemu硬件接口的正确: native + klib 跑 am-kernels的am-test
 >
->     在native上测试klib，并不能跳入klib里的函数❓在klib还没做printf的阶段，只能用二分法找到出错的用例定位到是哪个klib里的函数有问题，然后把对应的klib函数和测试用例复制到一个临时c中调试、修改（最好把函数名修改掉，如果就是什么strcmp，它也不报错，直接神不知鬼不觉地就去用c的库了？）
->   - 保证nemu正确: nemu + glibc 跑 am-kernels（后面有difftest就更全面了）
+>     在native上测试klib，想跳入klib里的函数需要在abstrace-machine的Makefile的CFLAGS中加上`-g`
+>   - 保证am与nemu硬件接口的正确（后面涉及外设时）: native + klib 跑 am-kernels的am-test
+>   - 保证nemu正确: nemu + klib 跑 am-kernels（后面有difftest就更全面了）
 
 ### difftest
 
@@ -594,7 +601,7 @@ ecall
 mret
 - 恢复pc为`mepc`寄存器的值即可
 
-另外记得要再nemu中找个地方初始化`mstatus`为0x1800（通过difftest的报错也能看出来，但具体这个值是啥❓）
+另外记得要再nemu中找个地方初始化`mstatus`为0x1800（通过difftest的报错也能看出来，是在设置MPP为`0b11`）
 
 > [!TIP]
 > 到此运行`am-tests`的`intr.c`时，可以正常运行（difftest不报错，无未实现的指令）到`AM Panic: Unhandled event`
@@ -636,7 +643,7 @@ navy，通过`/navy-apps/libs/libos/src/syscall.c`的系统调用，或包裹了
 
 nanos，`src`里的c程序（包括`/nanos-lite/build/ramdisk.img`、`/nanos-lite/resources/logo.txt`）作为客户程序，和am-kernels的make方式一样打包成为一整个IMAGE让nemu运行。不过就是个“能运行在abstract-machine加持的nemu裸机上的客户程序”罢了。
 
-> ❓nanos要搞loder去读elf是最容易的方法？如果直接给个（和nemu读入的一样的）裸二进制文件的navy程序，需要额外做哪些工作才能在nanos运行？
+> 二周目问题：加载程序可不可以和nuemu一样，直接给个裸二进制文件的navy程序❓直接load到0x83000000的地方？
 
 ## 3.3
 
@@ -727,8 +734,6 @@ run_ftrace: image
 VGA部分：
 - 规定`fb_write()`要进行刷新，而限于`size_t fb_write(void *buf, size_t offset, size_t len)`的接口形式，没法通过len算出一个RECT的`w*h`给VGA，导致`fb_write()`只能实现让VGA写一行数据。最后展现出来的形式是从上往下的幕布。
 - 用lseek指定绘画的起始地址
-
-> 咱能不能`fb_write()`里不刷新，写完所有行后，再用另一个系统调用去刷新屏幕`io_write(AM_GPU_FBDRAW, 0, 0, NULL, 0, 0, true);`❓
 
 ## 3.5
 
@@ -883,7 +888,9 @@ word.dat
 - native运行: 在`/navy-apps/apps/am-kernels`中`make ISA=native run`，运行am-kernels中`benchmarks`和`kernels`文件夹下的程序，可以用`ALL=xxx`指定运行哪一个
 - nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`/nanos-lite/src/proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
 
-heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中的`_end`到`PMEM_END`，但`PMEM_END`是nemu特有的，native没有啊？
+> heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中的`_end`到`PMEM_END`，但`PMEM_END`是nemu特有的，native没有啊？
+>
+> 而且到PA4后面实现虚拟地址空间了，堆区向上长，栈区向下长，也没法检测是否会重叠
 
 #### microbench
 
@@ -1098,7 +1105,7 @@ yield() （此地址存在Context.mepc中，用于以后被mret恢复pc）
 
 现在要求navy程序拥有属于自己的函数调用栈！
 
-- 内核栈: pcb中存储初始化用的Context，只有进程被创建时会被__am_asm_trap进行“恢复”时用到。内核栈对于用户进程来说还有什么用❓
+- 内核栈: pcb中存储初始化用的Context，目前只有进程被创建时会被__am_asm_trap进行“恢复”时用到（PA的最后会让用户进程在trap时切换到内核栈）
 - 用户栈: 运行时的函数栈，当运行一段时间后，要被挂起时，就在__am_asm_trap中将Context存在用户栈中。
 
 暂时让用户栈从heap.end开始，从上往下生长，而用户堆依旧是`_bss`结尾处（`_end`处）从下往上生长。
@@ -1591,6 +1598,4 @@ TODO
 
 TODO:
 - 看看别人的SDL Audio实现
-- 所有的小问号❓
-- 所有的TODO
 - 网页转换为md，文档里的做事方法和原则

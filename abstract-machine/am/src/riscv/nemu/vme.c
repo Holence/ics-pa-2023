@@ -29,7 +29,6 @@ bool vme_init(void *(*pgalloc_f)(int), void (*pgfree_f)(void *)) {
   pgfree_usr = pgfree_f;
 
   // 新建内核页表
-  // kas的area pgsize不用设置吗❓
   kas.ptr = pgalloc_f(PGSIZE);
   printf("Kernel Page Table 0x%x\n", kas.ptr);
 
@@ -58,7 +57,7 @@ void protect(AddrSpace *as) {
   as->area = USER_SPACE;
   as->pgsize = PGSIZE;
   // map kernel space
-  // 用户进程也知晓内核的地址空间，是为了让用户进程栈能够调用nanos、AM中的函数❓
+  // 用户进程也知晓内核的地址空间，是为了让用户进程栈能够调用nanos、AM中的函数
   memcpy(updir, kas.ptr, PGSIZE);
 }
 
@@ -87,7 +86,7 @@ void __am_switch(Context *c) {
 #define PTE_PPN(x) BITS(x, 31, 10)
 
 // 建立页表（Sv32两级页表），编写va->pa的页表项。
-// 目前不建立4MB superpage，isa_mmu_translate里可以省去很多步骤❓
+// 这里不建立4MB superpage，所以isa_mmu_translate里可以省去很多步骤
 // 不考虑prot
 // pa是物理页的地址
 // - 内核页表: 有权利访问全图，无需申请物理页，pa仅仅作为内核页表进行“恒等映射”全图的地标 va==pa

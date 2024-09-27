@@ -60,7 +60,7 @@ static void itrace(Decode *s) {
   memset(p, ' ', space_len);
   p += space_len;
 
-// 反汇编，从机器码解析出汇编，具体原理不懂，llvm是啥❓
+// 反汇编，从机器码解析出汇编，具体原理不懂
 #ifndef CONFIG_ISA_loongarch32r
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,

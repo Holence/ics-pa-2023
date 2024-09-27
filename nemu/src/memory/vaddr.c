@@ -16,7 +16,6 @@
 #include <isa.h>
 #include <memory/paddr.h>
 
-// 这俩函数一模一样❓
 word_t vaddr_ifetch(vaddr_t addr, int len) {
   if (isa_mmu_check(0, 0, 0) == MMU_DIRECT) {
     return paddr_read(addr, len);
@@ -25,7 +24,6 @@ word_t vaddr_ifetch(vaddr_t addr, int len) {
   }
 }
 
-// 这俩函数一模一样❓
 word_t vaddr_read(vaddr_t addr, int len) {
   if (isa_mmu_check(0, 0, 0) == MMU_DIRECT) {
     return paddr_read(addr, len);

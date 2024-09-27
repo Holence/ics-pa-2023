@@ -119,7 +119,7 @@ void NDL_CloseAudio() {
 }
 
 // 播放缓冲区`buf`中长度为`len`字节的音频数据, 返回成功播放的音频数据的字节数
-// 是返回成功流入的字节数吧❓流入了不一定立刻被播放
+// 是返回成功流入的字节数吧，流入了不一定立刻被播放
 int NDL_PlayAudio(void *buf, int len) {
   int fd = open("/dev/sb", O_WRONLY);
   return write(fd, buf, len);
