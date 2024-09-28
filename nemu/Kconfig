@@ -127,7 +127,7 @@ endmenu
 menu "Testing and Debugging"
 
 config INST_STATISTIC
-  bool "Enable instruction statistic (to optimize the order of INSTPAT in inst.c)"
+  bool "Enable instruction statistic (for optimizing the order of INSTPAT in inst.c)"
   default n
 
 config TRACE

@@ -6,7 +6,7 @@ static void (*SDL_Audio_callback)(void *userdata, uint8_t *stream, int len);
 static uint8_t *SDL_Audio_buf;
 static bool SDL_Audio_pause = true;
 static uint16_t SDL_Audio_sample;
-
+static void *SDL_Audio_userdata;
 static uint32_t SDL_Audio_interval_ms;
 static uint32_t SDL_Audio_tick;
 
@@ -16,25 +16,26 @@ int SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained) {
   // printf("SDL_OpenAudio %d %d %d %d - %x\n", desired->freq, desired->channels, desired->samples, desired->size, obtained);
   NDL_OpenAudio(desired->freq, desired->channels, desired->samples);
 
+  SDL_Audio_sample = desired->samples * (desired->format / 8) * desired->channels;
   // SDL_OpenAudio calculates the size fields for both the desired and obtained specifications
   // The size field stores the total size of the audio buffer in bytes❓
+  desired->size = SDL_Audio_sample;
+  SDL_Audio_userdata = desired->userdata;
+  SDL_Audio_buf = malloc(SDL_Audio_sample);
+  SDL_Audio_callback = desired->callback;
+  SDL_Audio_interval_ms = SDL_Audio_sample * 100 / desired->freq; // * 1000 ❓
 
   if (obtained) {
     obtained->freq = desired->freq;
+    obtained->format = desired->format;
     obtained->channels = desired->channels;
     obtained->samples = desired->samples;
-    obtained->format = desired->format;
     obtained->size = desired->size;
+    obtained->callback = desired->callback;
+    obtained->userdata = desired->userdata;
   }
 
-  // SDL_Audio_sample = desired->samples;
-  SDL_Audio_sample = desired->samples * (desired->format / 8) * desired->channels; // 不知道该为多少，不过这样设置的话nplayer的波形图才正确❓
-  SDL_Audio_buf = malloc(SDL_Audio_sample);
-  SDL_Audio_callback = desired->callback;
-
-  SDL_Audio_interval_ms = SDL_Audio_sample * 100 / desired->freq; // * 1000 ❓
   SDL_Audio_tick = NDL_GetTicks();
-
   return 0;
 }
 
@@ -53,7 +54,7 @@ void CallbackHelper() {
     if (now - SDL_Audio_tick > SDL_Audio_interval_ms) {
       SDL_Audio_tick = now;
       if (NDL_QueryAudio() > SDL_Audio_sample) {
-        SDL_Audio_callback(NULL, SDL_Audio_buf, SDL_Audio_sample);
+        SDL_Audio_callback(SDL_Audio_userdata, SDL_Audio_buf, SDL_Audio_sample);
         NDL_PlayAudio(SDL_Audio_buf, SDL_Audio_sample);
       }
     }

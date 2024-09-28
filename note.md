@@ -152,42 +152,43 @@ _pmem_start:    0x80000000
 - nemu中`inst.c`的指令匹配`INSTPAT`是一条条进行的，可以通过统计指令使用的频度调整匹配的顺序。在menuconfig中打开`INST_STATISTIC`选项（自己实现去），观察使用nanos一段时间的[指令频度](.asset/nanos_inst-statistic.txt)），调整匹配顺序，可以让coremark在中的分数上升20左右（上述环境为“分页+时钟中断的两个pcb并发”的nanos）
 - nanos跑ftrace，观察nanos和am中的[函数调用频度](.asset/nanos_ftrace-statistic.txt)，但好像并没有很多需要优化的函数
 - `make menuconfig`中Enable Debug Information后，会用`-Og`进行编译，会使性能下降！
+- nemu make menuconfig 选择 Host timer 为 clock_gettime
 
-贴一下跑分（直接在am-kernels中运行），算出来大约只有真机的0.5%😫
+贴一下跑分（直接在am-kernels中运行），算出来大约只有真机的0.6%左右😫
 ```
 MicroBench naitve: 60913 Marks
 ======= Running MicroBench [input *ref*] =======
 [qsort] Quick sort: * Passed.
-  min time: 475.929 ms [925]
+  min time: 387.994 ms [1135]
 [queen] Queen placement: * Passed.
-  min time: 990.505 ms [410]
+  min time: 831.987 ms [489]
 [bf] Brainf**k interpreter: * Passed.
-  min time: 6293.881 ms [267]
+  min time: 5215.917 ms [322]
 [fib] Fibonacci number: * Passed.
-  min time: 9839.824 ms [204]
+  min time: 7903.878 ms [255]
 [sieve] Eratosthenes sieve: * Passed.
-  min time: 12296.194 ms [283]
+  min time: 9971.847 ms [349]
 [15pz] A* 15-puzzle search: * Passed.
-  min time: 1264.628 ms [423]
+  min time: 1043.984 ms [513]
 [dinic] Dinic's maxflow algorithm: * Passed.
-  min time: 1435.807 ms [569]
+  min time: 1171.982 ms [698]
 [lzip] Lzip compression: * Passed.
-  min time: 1635.268 ms [415]
+  min time: 1371.979 ms [495]
 [ssort] Suffix sort: * Passed.
-  min time: 649.518 ms [616]
+  min time: 511.992 ms [781]
 [md5] MD5 digest: * Passed.
-  min time: 10388.583 ms [146]
+  min time: 8515.873 ms [178]
 ==================================================
-MicroBench PASS        425 Marks
+MicroBench PASS        521 Marks
                    vs. 100000 Marks (i9-9900K @ 3.60GHz)
-Scored time: 45270.137 ms
-Total  time: 52284.149 ms
+Scored time: 36927.433 ms
+Total  time: 42755.347 ms
 
 CoreMark native:       64920 Marks
-CoreMark riscv32-nemu: 324 Marks
+CoreMark riscv32-nemu: 397 Marks
 
-Dhrystone native:       21485 Marks
-Dhrystone riscv32-nemu: 111 Marks
+Dhrystone native:       24469 Marks
+Dhrystone riscv32-nemu: 140 Marks
 ```
 
 # PA1
@@ -941,7 +942,7 @@ word.dat
 nanos和NDL部分做完后，把`/am-kernels/tests/am-tests/src/tests/audio.c`的小星星移植过来做个测试
 
 > [!TIP]
-> `NDL_CloseAudio()`没说是什么，这里我就自己发挥了。nemu声卡的SDL好像不能切换频率❓除了`SDL_CloseAudio`再重新`SDL_OpenAudio`。这里就规定写入`__am_audio_ctrl`四个寄存器时（也就是nemu中`audio_io_handler`处），当freq、channels、sample三个数都是0时，表明nemu声卡要`SDL_CloseAudio`，以便之后其他软件可以重新`SDL_OpenAudio`设置不同的参数。（如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐）
+> `NDL_CloseAudio()`没说是什么，这里我就自己发挥了。nemu声卡的SDL好像不能切换频率❓只能`SDL_CloseAudio`再重新`SDL_OpenAudio`。这里就规定写入`__am_audio_ctrl`四个寄存器时（也就是nemu中`audio_io_handler`处），当freq、channels、sample三个数都是0时，表明nemu声卡要`SDL_CloseAudio`，以便之后其他软件可以重新`SDL_OpenAudio`设置不同的参数。（如果没有这样的重置操作，用menu界面，运行完频率为11025的bad-apple后，接着运行nplayer播放频率为44100的小星星，就会播放出特别低沉、舒缓的氛围乐）。就连am的native也没有实现这个……
 >
 > 具体硬件要做的：
 > ```c
@@ -1595,7 +1596,3 @@ TODO
 - 4.4 我们在PA3中知道printf()会通过malloc()申请缓冲区, 而malloc()又可能会执行_sbrk(), 通过SYS_brk陷入内核; 在上一个阶段中, 我们实现了支持分页机制的mm_brk(), 在必要的时候它会通过new_page()申请一页. 而仙剑和hello用户进程都会调用printf(), 使得它们可能会并发执行SYS_brk. 思考一下, 目前Nanos-lite的设计会导致并发bug吗? 为什么?
 
   不会。我们的时钟中断后是关中断的，只有等第一个进程调用完`printf()`，才会开中断，才可能通过时钟中断切换第二个进程里进行`printf()`。
-
-TODO:
-- 看看别人的SDL Audio实现
-- 网页转换为md，文档里的做事方法和原则
