@@ -1,4 +1,5 @@
 REPO_PATH = repo
+$(shell mkdir -p $(NAVY_HOME)/fsimg/share/games)
 ifeq ($(wildcard repo/include/BirdGame.h),)
   $(shell git clone --depth=1 git@github.com:NJU-ProjectN/sdlbird.git $(REPO_PATH))
 endif
