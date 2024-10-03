@@ -12,6 +12,10 @@ function addenv() {
 # usage: init repo branch directory trace [env]
 # trace = true|false
 function init() {
+  if [ $5 ] ; then
+    addenv $5 $3
+  fi
+
   if [ -d $3 ]; then
     echo "$3 is already initialized, skipping..."
     return
@@ -31,10 +35,6 @@ function init() {
     echo "/$3" >> .gitignore
     git add -A .gitignore
     git commit --no-verify --allow-empty -am "$1 $2 initialized without tracing"$'\n\n'"$log"
-  fi
-
-  if [ $5 ] ; then
-    addenv $5 $3
   fi
 }
 
