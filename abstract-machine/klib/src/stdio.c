@@ -5,6 +5,9 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
+#define __KLIB_UINT uint64_t
+#define __KLIB_INT  int64_t
+
 #define write_char(c) \
   {                   \
     *out = c;         \
@@ -22,14 +25,6 @@
     }                         \
     length;                   \
   })
-
-#if __riscv_xlen == 64
-#define __KLIB_UINT uint64_t
-#define __KLIB_INT int64_t
-#else
-#define __KLIB_UINT uint32_t
-#define __KLIB_INT int32_t
-#endif
 
 int write_number(char *out, __KLIB_UINT number, int base) {
   int char_written = 0;
@@ -62,74 +57,73 @@ int write_number(char *out, __KLIB_UINT number, int base) {
   return char_written;
 }
 
+#define digit_case                          \
+  length = write_number(out, number, base); \
+  char_written += length;                   \
+  out = out + length;                       \
+  break;
+
 int vsprintf(char *out, const char *fmt, va_list ap) {
   int char_written = 0;
   int base;
+  int length;
   bool translate = false;
   __KLIB_UINT number;
   while (*fmt != '\0') {
-    switch (*fmt) {
-    case '%':
+    if (*fmt == '%') {
       if (translate) {
         write_char('%');
         translate = false;
       } else {
         translate = true;
       }
-      break;
-    case 'd':
+    } else {
       if (translate) {
-        base = 10;
-        __KLIB_INT temp = (__KLIB_INT)va_arg(ap, int);
-        number = temp;
-        if (temp < 0) {
-          write_char('-');
-          number = -temp; // ❓INT_MIN被取负是Undefined Behavior，谁知道哪天就出bug了，但想不出更好的办法了
+        translate = false;
+        switch (*fmt) {
+        case 'd':
+          base = 10;
+          __KLIB_INT temp = (__KLIB_INT)va_arg(ap, int);
+          // assert()
+          number = temp;
+          if (temp < 0) {
+            write_char('-');
+            // INT_MIN取负 是 Undefined Behavior
+            // 但编译时的数值会被Woverflow警告，而运行时变量里的数值一定在正确的范围内
+            // 所以这里应该没有问题
+            number = -temp;
+          }
+          digit_case;
+        case 'p':
+          write_char('0');
+          write_char('x');
+          base = 16;
+          number = (__KLIB_UINT)va_arg(ap, int);
+          digit_case;
+        case 'x':
+          base = 16;
+          number = (__KLIB_UINT)va_arg(ap, int);
+          digit_case;
+        case 's':
+          char *s = va_arg(ap, char *);
+          assert(s != NULL);
+          strcpy(out, s);
+          length = strlen(s);
+          out = out + length;
+          char_written += length;
+          break;
+        case 'c':
+          int c = va_arg(ap, int);
+          write_char((uint8_t)c);
+          break;
+        default:
+          putch(*fmt);
+          putch('\n');
+          panic("vsprintf not recognize format");
         }
-        goto digit_case;
+      } else {
+        write_char(*fmt);
       }
-    case 'p':
-      if (translate) {
-        write_char('0');
-        write_char('x');
-        base = 16;
-        number = (__KLIB_UINT)va_arg(ap, int);
-        goto digit_case;
-      }
-    case 'x':
-      if (translate) {
-        base = 16;
-        number = (__KLIB_UINT)va_arg(ap, int);
-        goto digit_case;
-      }
-    case 's':
-      if (translate) {
-        translate = false;
-        char *s = va_arg(ap, char *);
-        assert(s != NULL);
-        strcpy(out, s);
-        int length = strlen(s);
-        out = out + length;
-        char_written += length;
-        break;
-      } // to default
-    case 'c':
-      if (translate) {
-        translate = false;
-        int c = va_arg(ap, int);
-        write_char((uint8_t)c);
-        break;
-      } // to default
-    default:
-      translate = false; // 如果前面是%，后面遇到不认识的格式（这里还没实现的格式），取消本次转义
-      write_char(*fmt);
-      break;
-    digit_case:
-      translate = false;
-      int length = write_number(out, number, base);
-      char_written += length;
-      out = out + length;
-      break;
     }
     fmt++;
   }
