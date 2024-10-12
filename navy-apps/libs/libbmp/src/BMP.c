@@ -34,7 +34,7 @@ void* BMP_Load(const char *filename, int *width, int *height) {
   uint32_t *pixels = malloc(w * h * sizeof(uint32_t));
 
   // Row padding: each row in a BMP fp is padded to a multiple of 4 bytes
-  // int rowPadding = (4 - (w * 3) % 4) % 4;
+  int rowPadding = (4 - (w * 3) % 4) % 4;
   fseek(fp, hdr.offset, SEEK_SET);
   uint32_t *pixel_ptr = pixels + (h - 1) * w;
   int two_w = w << 1;
@@ -53,7 +53,7 @@ void* BMP_Load(const char *filename, int *width, int *height) {
     }
     pixel_ptr -= two_w;
     // Skip row padding if any
-    // fseek(fp, rowPadding, SEEK_CUR);
+    fseek(fp, rowPadding, SEEK_CUR);
   }
   free(buffer);
 
