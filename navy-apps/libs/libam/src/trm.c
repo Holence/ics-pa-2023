@@ -1,9 +1,13 @@
 #include <am.h>
 #include <klib-macros.h>
 
-// ❓navy程序的heap，应该是从navy程序中_end向上一直到PMEM_END，但怎么在这里设置
-extern char _end;
-Area heap = RANGE(&_end, &_end + 0x8000000);
+#define HEAP_SIZE (4 << 20)
+Area heap;
+__attribute__((constructor)) void before_main() {
+  heap.start = malloc(HEAP_SIZE);
+  panic_on(heap.start == NULL, "malloc failed");
+  heap.end = heap.start + HEAP_SIZE;
+}
 
 void putch(char ch) {
   putc(ch, stdout);

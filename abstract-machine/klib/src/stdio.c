@@ -117,9 +117,13 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
           write_char((uint8_t)c);
           break;
         default:
-          putch(*fmt);
-          putch('\n');
-          panic("vsprintf not recognize format");
+          if (*fmt >= '0' && *fmt <= '9') {
+            translate = true;
+          } else {
+            putch(*fmt);
+            putch('\n');
+            panic("vsprintf not recognize format");
+          }
         }
       } else {
         write_char(*fmt);

@@ -85,6 +85,8 @@ AM的五个模块，从前往后对应着计算机历史发展的进程：
 
 ## 关于fceux红白机模拟器画面无显示
 
+貌似这个问题在[后来的commit](https://github.com/NJU-ProjectN/fceux-am/commit/d5524ba624300869d6c793f01e6632e4dc3066ef)中修复了，我还没有测过❓
+
 做完声卡后运行红白机模拟器跑mario，发现程序在跑，帧率也有，按I键进入游戏，也可以听到声音，但就是VGA没有任何显示。
 
 解决方法：`/fceux-am/src/drivers/sdl/sdl.cpp`的`FCEUD_Update()`中，把关于刷新屏幕的函数调用`BlitScreen()`以及包裹它的判断都删了，在函数的最前面这样调用就行了。（nemu的声卡开启后，那些判断都无法满足，不懂原理❓）
@@ -890,9 +892,9 @@ word.dat
 - native运行: 在`/navy-apps/apps/am-kernels`中`make ISA=native run`，运行am-kernels中`benchmarks`和`kernels`文件夹下的程序，可以用`ALL=xxx`指定运行哪一个
 - nanos运行: 在`/navy-apps/Makefile`添加`APPS = am-kernels`后，在nanos中`make ARCH=riscv32-nemu update`，会生成`xxx`，所以需要到`/nanos-lite/src/proc.c`中`naive_uload(NULL, "/bin/xxx");`，再`make ARCH=riscv32-nemu run`
 
-> heap该怎么设置❓按理说应该是[PA3.3 堆区管理](#堆区管理)中的`_end`到`PMEM_END`，但`PMEM_END`是nemu特有的，native没有啊？
+> 这里的heap该怎么设置
 >
-> 而且到PA4后面实现虚拟地址空间了，堆区向上长，栈区向下长，也没法检测是否会重叠
+> 学到jyy操作系统的[OSLab1 物理内存管理](https://jyywiki.cn/OS/2024/labs/L1.md)以及[C 标准库和实现](https://jyywiki.cn/OS/2024/lect17.md)之后，就会知道用户程序的堆区是建立在内核分配的页面中的（用户程序用libc的malloc函数管理堆区，内核用kalloc分配页面），所以这里直接`heap.start = malloc()`就行了
 
 #### microbench
 
@@ -900,12 +902,12 @@ word.dat
 > microbench为什么会运行错误
 >
 > 首先是启动阶段的`Segmentation fault`: `int main(const char *args)`所要的`args`，会拿去`strcmp`。之前结合abstract-machine编译时是两边约定好就传一个字符串，见[PA2.5 串口](#串口)。
-> - 而现在在navy中用native编译，没有了之前的那些操作（之前是从env中提取`mainargs`再调用`main`并传入），现在是运行时只是作为一个普通的程序直接从终端启动，传入的第一个参数就默认成了`int argc`（即使按照`/navy-apps/scripts/native.mk`说的加上了`mainargs=test`也没用了），打印一下看到是大于0的值（传入参数的个数），所以被`strcmp`当作地址时就`Segmentation fault`了
+> - 而现在在navy中用native编译，没有了之前的那些操作（之前是从env中提取`mainargs`再调用`main`并传入），现在是运行时只是作为一个普通的程序直接从终端启动，传入的第一个参数就默认成了`int argc`（即使按照`/navy-apps/scripts/native.mk`说的加上了`mainargs=test`也没用了），打印一下看到是大于0的值（传入参数的个数），所以被`strcmp`当作地址时就`Segmentation fault`了。
+>
+>   在前一节正确设置heap后，这里删除掉启动阶段`strcmp`，直接默认跑`ref`测试集，即可正常运行
 > - 若是到nanos中用riscv32-nemu编译，运行时用函数调用的方式启动`main()`，看到`argc`为0，就被当作为NULL，于是就顺利启动
 >
-> 即使删除掉启动阶段`strcmp`，直接默认跑`test`测试集，后面也会触发`Segmentation fault`，猜测应该是heap使用的问题❓: microbench中的每一组测试，都是从`heap.start`开始用内存，每做完一组测试，也不进行任何的清理，就把自定义的`hbrk`重置到`heap.start`，然后覆写。
-> - 若要native能这样用，那得让heap在一个预先申请的空间，所以heap该怎么设置❓
-> - nanos+am+riscv32-nemu对内存读写没什么限制，倒是能跑几个测试，但不知道为什么到A*时就`Segmentation fault`了❓
+>   A*时会`Segmentation fault`吗，待测试❓
 
 #### fceux
 
@@ -933,7 +935,7 @@ word.dat
 
 就161220016和171240511这两个同学的在navy native上跑不了
 
-- 161220016: 应该还是乱使用heap的问题
+- 161220016: 应该还是乱使用heap的问题❓
 - 171240511: "SDLTimer" received signal SIGSEGV
 
 ### 声音
@@ -1117,7 +1119,7 @@ yield() （此地址存在Context.mepc中，用于以后被mret恢复pc）
 >
 > 因为目前loader只是根据elf给出的虚拟地址装载入内存，两个navy程序依次装载，后者就覆盖了前者。而且目前的栈空间都是从heap.end开始往下，两个navy程序的栈都混着了。
 
-操作系统与编译器的约定（`nanos:context_uload`与`navy:_start`的约定）
+操作系统和libc的约定（`nanos:context_uload`与`navy:_start`的约定，在真实操作系统中`_start`其实也是属于libc的）
 - 初始的sp值在a0中：为了让栈开设到堆区上申请出来的页里，就得等schedule、__am_asm_trap用sp得到PCB中Context的地址并初始化完Context后，mret进入进程函数后的第一句指令，立刻设置sp为页上的地址。Nanos-lite和Navy作了一项约定: Nanos-lite把进程的栈顶地址记录到GPRx中, 然后由Navy里面的_start中把栈顶地址设置到sp寄存器中
 - 传入的参数在初始stack中摆放的样子：`nanos:context_uload`中让初始栈从下往上存argc、argv、envp、string area，让初始sp指向这些参数的最底部，也就是argc的地址。这样`navy:_start`后就能方便地顺序读取，之后用户栈往下生长即可，不必理会最上面的这些数据。
   ```
