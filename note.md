@@ -1090,12 +1090,20 @@ context_kload(&pcb[1], hello_fun, (void *)1);
 ```
 
 - 主线程栈中，分别用`kcontext()`构建初始化用的Context（放在各自PCB的stack的尾部，也就是高地址的栈底处），各自的pcb->cp指向Context，各自的pcb->cp->mepc指向内核中的`hello_fun`函数
-- 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时**魔法**发生了：**“主线程栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`”，主线程栈中的__am_asm_trap结束了，而`pc`和`sp`都就位到线程0中**，便新建出了线程0
-- 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈顶，再`__am_irq_handle() -> schedule()`，设置`pcb->cp`指向栈顶保存的Context（用于以后切换回来时恢复sp），修改全局变量`current = &pcb[1]`，同理又用**魔法**新建出线程1
-- 线程1在自己的栈中运行，`yield`时同样保存当前的Context在自己的栈顶，`schedule()`后又用**魔法**：**“线程1栈继续运行__am_asm_trap剩下的指令，让`sp`跳转为`pcb[0].cp`，将CPU修改变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为Context中保存的`mepc`（线程1要恢复运行的地址）”，线程1栈中的__am_asm_trap结束了，而`pc`和`sp`都就位到线程0中**，返回到线程0
+
+- 主线程栈中`switch_boot_pcb()`初始化全局变量current，回到`main()`中`yield()`，主线程栈开出`__am_asm_trap -> __am_irq_handle() -> schedule()`，全局变量`current = &pcb[0]`，并返回`pcb[0].cp`的值给`__am_asm_trap`，这时*魔法*发生了：
+  
+  继续运行`__am_asm_trap`剩下的指令，`sp`跳转到`pcb[0].cp`（从主线程栈跳进`pcb[0]`的线程栈），将CPU的状态变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为`hello_fun`，这样`pc`和`sp`都就位到线程0中，便新建出了线程0
+
+- 线程0的栈（sp在`pcb[0].stack`中从初始Context的下方，向下生长），`yield`时，线程0的栈中开出`__am_asm_trap`，保存当前的Context在自己的栈顶，再`__am_irq_handle() -> schedule()`，设置`pcb->cp`指向栈顶保存的Context（用于以后切换回来时恢复sp），修改全局变量`current = &pcb[1]`，同理又用*魔法*新建出线程1
+
+- 线程1在自己的栈中运行，`yield`时同样保存当前的Context在自己的栈顶，`schedule()`后又用*魔法*：
+  
+  继续运行`__am_asm_trap`剩下的指令，让`sp`跳转为`pcb[0].cp`（从线程1的栈跳进线程0的栈），将CPU的状态变为接下来要运行的线程的Context，最后`mret`让`pc`跳转为Context中保存的`mepc`（线程1要恢复运行的地址），这样`pc`和`sp`都就位到线程0中，返回到线程0
+
 - 循环往复
 
-当CPU出去忙其他线程时，主线程栈、线程0栈、线程1栈，都维持着这样的函数栈：CPU回来的时候，借用退出者的__am_asm_trap的后半部分恢复sp、Context、pc。颇有一种NTR的美感。
+> CPU运行到`__am_asm_trap`，在`__am_asm_trap`的前半部分是`线程prev`的状态，等`schedule()`后再返回到`__am_asm_trap`时，sp就立刻变了，sp已经位于`线程next`的栈上了，等`__am_asm_trap`的后半部分执行完最后`mret`，`pc`也指向`线程next`的代码了
 
 ```
 线程函数
