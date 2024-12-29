@@ -350,7 +350,7 @@ void _trm_init() {
 // halt: 将客户程序`main()`的返回值，约定使用`a0`寄存器传返回值，通过`ebreak`指令让nemu终止，并将传入的返回值作为`nemu_state.halt_ret`，作为判断`Good/Bad Trap`的依据，最后退出nemu。
 ```
 
-> gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`和`ebreak`，这些都是运行环境（操作系统）附加的东西
+> gcc的输出也能说明这点，单纯的程序文件的机器码并不包含`_start`，这是运行环境（libc为了辅助程序在操作系统上运行）附加的东西
 >
 > ```bash
 > cd /am-kernels/tests/cpu-tests
@@ -360,13 +360,13 @@ void _trm_init() {
 > # 或输出机器码
 > gcc -c tests/dummy.c -o dummy.o
 > objdump -d dummy.o
-> # 发现里面没有_start和hlt (hlt应该就是和ebreak同样的存在吧❓)
+> # 发现里面没有_start
 > # dummy.o是不能被操作系统运行的
 > 
 > # 编译（并链接运行环境），生成可执行文件
 > gcc tests/dummy.c -o dummy
 > objdump -d dummy
-> # 发现在_start函数中有hlt，这并不是main()函数
+> # 发现里面有_start
 > ```
 
 ## 2.4
