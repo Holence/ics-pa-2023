@@ -1421,6 +1421,8 @@ nanos运行两个用户进程的过程：
 > 为什么目前不支持并发执行多个用户进程?
 >
 > 不存在的问题。如果传入`__am_irq_handle`的`Context*`以及`user_handler`的返回值`Context*`是虚拟地址，才会有文档里说的问题。但我这里的现实是，这些都是分页后的物理页里的物理地址。
+>
+> 几个月后回来看看发现打脸了哈哈……是因为这个逗逼给用户进程设置的初始sp就是物理地址……见`nanos-lite/src/proc.c:context_uload`最后的一句`pcb->cp->GPRx = (uintptr_t)pointer_area_ptr;`（一路往上推可以看到来源于`new_page()`出来的物理地址），这里应该给的是虚拟地址啊啊啊！
 
 > [!NOTE]
 > 打破循环依赖的方法：将地址空间描述符指针存放在PCB中, 并在VME中添加一个新API switch_addrspace(), 从正确性来考虑, 这一方案是否可行?
